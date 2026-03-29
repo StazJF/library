@@ -95,10 +95,57 @@ class TeacherController extends Controller
         return redirect()->route('teachers.index')->with('success', 'Remark updated successfully.');
     }
 
-    public function showBorrowHistory(Teacher $teacher)
+    public function showBorrowHistory(Teacher $teacher, Request $request)
     {
-        $borrows = $teacher->borrows()->with('book')->latest('borrowed_at')->get();
-        return view('users.teacher-borrow-history', compact('teacher', 'borrows'));
+        $filter = $request->query('filter', 'all');
+        
+        $query = $teacher->borrows()->with(['book', 'lostDamagedItem' => function($q) {
+            // Only load LostDamagedItem if it belongs to this teacher
+            $q->where('role', 'teacher')->with('histories');
+        }])->latest('borrowed_at');
+        
+        if ($filter === 'personal') {
+            $query->where('origin', 'personal');
+        } elseif ($filter === 'distribution') {
+            $query->where('origin', 'distribution');
+        } elseif ($filter === 'damaged') {
+            // Only show items that have been marked as found or repaired, and belong to this teacher
+            $query->whereHas('lostDamagedItem', function($q) use ($teacher) {
+                $q->where('user_id', $teacher->id)
+                  ->where('role', 'teacher')
+                  ->where(function($inner) {
+                      $inner->where('status', 'found')
+                            ->orWhere('status', 'repaired');
+                  });
+            });
+        }
+        
+        $borrows = $query->get();
+        
+        // Calculate counts for damaged items - only count those that have been found/repaired and belong to this teacher
+        $allBorrows = $teacher->borrows()->with('lostDamagedItem')->get();
+        $damagedCounts = [
+            'lost' => $allBorrows->filter(function($b) use ($teacher) {
+                $ldi = $b->lostDamagedItem;
+                return $ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher' &&
+                       strtolower($ldi->type) === 'lost' && strtolower($ldi->status) === 'found';
+            })->count(),
+            'damaged' => $allBorrows->filter(function($b) use ($teacher) {
+                $ldi = $b->lostDamagedItem;
+                return $ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher' &&
+                       strtolower($ldi->type) === 'damaged' && 
+                       (!$ldi->status || strtolower($ldi->status) !== 'repaired');
+            })->count(),
+            'repaired' => $allBorrows->filter(function($b) use ($teacher) {
+                $ldi = $b->lostDamagedItem;
+                return $ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher' &&
+                       strtolower($ldi->status) === 'repaired';
+            })->count(),
+        ];
+        
+        $damagedCounts['total'] = array_sum($damagedCounts);
+        
+        return view('users.teacher-borrow-history', compact('teacher', 'borrows', 'filter', 'damagedCounts'));
     }
 
     public function destroy(Teacher $teacher)

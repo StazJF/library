@@ -909,9 +909,9 @@ class BookController extends Controller
 
         // Create the book record (without JSON fields)
         $book = Book::create([
-            'title'    => $request->title,
-            'author'   => $request->author,
-            'publisher' => $request->publisher,
+            'title'    => ucwords(strtolower($request->title)),
+            'author'   => ucwords(strtolower($request->author)),
+            'publisher' => ucwords(strtolower($request->publisher)),
             'isbn'     => $request->isbn,
             'category' => $categoryValue,
             'call_number' => $request->call_number,
@@ -1063,9 +1063,9 @@ class BookController extends Controller
 
         // Update the book record (without JSON fields)
         $book->update([
-            'title' => $request->title,
-            'author' => $request->author,
-            'publisher' => $request->publisher,
+            'title' => ucwords(strtolower($request->title)),
+            'author' => ucwords(strtolower($request->author)),
+            'publisher' => ucwords(strtolower($request->publisher)),
             'isbn' => $request->isbn,
             'category' => $categoryValue,
             'call_number' => $request->call_number,

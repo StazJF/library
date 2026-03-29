@@ -88,6 +88,11 @@ class Borrow extends Model
         return $this->belongsTo(BookCopy::class, 'book_copy_id');
     }
 
+    public function lostDamagedItem()
+    {
+        return $this->hasOne(LostDamagedItem::class, 'borrow_id');
+    }
+
     // Accessor to get the borrower (User or Teacher) directly
     public function getBorrower()
     {

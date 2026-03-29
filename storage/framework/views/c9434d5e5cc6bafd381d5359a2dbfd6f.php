@@ -42,12 +42,58 @@
 
     <div class="card shadow-sm">
         <div class="card-header bg-white text-black">
-            <h5 class="mb-0">
-                <i class="bi bi-book me-2"></i>All Borrow History
-            </h5>
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="bi bi-book me-2"></i>All Borrow History
+                </h5>
+                <div class="btn-group" role="group">
+                    <a href="<?php echo e(route('teachers.borrow-history', $teacher)); ?>" 
+                       class="btn btn-sm <?php echo e(!isset($filter) || $filter === 'all' ? 'btn-primary' : 'btn-outline-primary'); ?>">
+                        <i class="bi bi-list me-1"></i>All
+                    </a>
+                    <a href="<?php echo e(route('teachers.borrow-history', ['teacher' => $teacher, 'filter' => 'personal'])); ?>" 
+                       class="btn btn-sm <?php echo e(isset($filter) && $filter === 'personal' ? 'btn-primary' : 'btn-outline-primary'); ?>">
+                        <i class="bi bi-person-check me-1"></i>Personal
+                    </a>
+                    <a href="<?php echo e(route('teachers.borrow-history', ['teacher' => $teacher, 'filter' => 'distribution'])); ?>" 
+                       class="btn btn-sm <?php echo e(isset($filter) && $filter === 'distribution' ? 'btn-primary' : 'btn-outline-primary'); ?>">
+                        <i class="bi bi-box-seam me-1"></i>Distribution
+                    </a>
+                    <a href="<?php echo e(route('teachers.borrow-history', ['teacher' => $teacher, 'filter' => 'damaged'])); ?>" 
+                       class="btn btn-sm <?php echo e(isset($filter) && $filter === 'damaged' ? 'btn-danger' : 'btn-outline-danger'); ?> d-flex align-items-center gap-2"
+                       title="Lost: <?php echo e($damagedCounts['lost']); ?> | Damaged: <?php echo e($damagedCounts['damaged']); ?> | Repaired: <?php echo e($damagedCounts['repaired']); ?>">
+                        <i class="bi bi-exclamation-triangle me-1"></i>Lost/Damaged/Repaired
+                        <?php if($damagedCounts['total'] > 0): ?>
+                            <span class="badge bg-light text-danger"><?php echo e($damagedCounts['total']); ?></span>
+                        <?php endif; ?>
+                    </a>
+                </div>
+            </div>
         </div>
         <div class="card-body p-0">
             <?php if($borrows->count() > 0): ?>
+                <?php if(isset($filter) && $filter === 'damaged' && $damagedCounts['total'] > 0): ?>
+                    <div class="alert alert-warning m-3 mb-0">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <strong><i class="bi bi-exclamation-circle me-1"></i>Lost & Found:</strong> <?php echo e($damagedCounts['lost']); ?>
+
+                            </div>
+                            <div class="col-md-3">
+                                <strong><i class="bi bi-tools me-1"></i>Damaged (Awaiting Repair):</strong> <?php echo e($damagedCounts['damaged']); ?>
+
+                            </div>
+                            <div class="col-md-3">
+                                <strong><i class="bi bi-check-circle me-1"></i>Repaired:</strong> <?php echo e($damagedCounts['repaired']); ?>
+
+                            </div>
+                            <div class="col-md-3">
+                                <strong><i class="bi bi-basket me-1"></i>Total Issues:</strong> <?php echo e($damagedCounts['total']); ?>
+
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
@@ -96,20 +142,33 @@
                                     </td>
                                     <td>
                                         <?php
-                                            $remarkLower = strtolower($remark);
                                             $remarkBadgeClass = 'bg-secondary';
+                                            $remarkIcon = '';
+                                            $displayRemark = '';
+                                            $shouldDisplay = false;
                                             
-                                            if (str_contains($remarkLower, 'lost')) {
-                                                $remarkBadgeClass = 'bg-danger';
-                                            } elseif (str_contains($remarkLower, 'damage') || str_contains($remarkLower, 'damaged')) {
-                                                $remarkBadgeClass = 'bg-danger text-white';
-                                            } elseif (str_contains($remarkLower, 'good') || $remark === '-') {
-                                                $remarkBadgeClass = 'bg-success';
+                                            // Check if there's a LostDamagedItem record
+                                            $ldi = $borrow->lostDamagedItem;
+                                            if ($ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher') {
+                                                // Only show lost items if they have been found
+                                                if (strtolower($ldi->type) === 'lost' && strtolower($ldi->status) === 'found') {
+                                                    $shouldDisplay = true;
+                                                    $remarkBadgeClass = 'bg-success';
+                                                    $remarkIcon = '<i class="bi bi-check-circle me-1"></i>';
+                                                    $displayRemark = 'Lost & Found';
+                                                } 
+                                                // Only show damaged items if they have been repaired
+                                                elseif (strtolower($ldi->type) === 'damaged' && strtolower($ldi->status) === 'repaired') {
+                                                    $shouldDisplay = true;
+                                                    $remarkBadgeClass = 'bg-info text-white';
+                                                    $remarkIcon = '<i class="bi bi-check-circle me-1"></i>';
+                                                    $displayRemark = 'Repaired';
+                                                }
                                             }
                                         ?>
-                                        <?php if($remark !== '-'): ?>
+                                        <?php if($shouldDisplay): ?>
                                             <span class="badge <?php echo e($remarkBadgeClass); ?>">
-                                                <?php echo e($remark); ?>
+                                                <?php echo $remarkIcon; ?><?php echo e($displayRemark); ?>
 
                                             </span>
                                         <?php else: ?>
