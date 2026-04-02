@@ -233,7 +233,13 @@ class DashboardController extends Controller
         $sortBy = in_array($sortBy, ['id', 'borrowed_at', 'due_date', 'returned_at']) ? $sortBy : 'borrowed_at';
         $sortOrder = in_array($sortOrder, ['asc', 'desc']) ? $sortOrder : 'desc';
 
-        $transactionsQuery = Borrow::with(['book'])
+        // Use eager loading to improve performance - include lost/damaged items and their histories
+        $transactionsQuery = Borrow::with([
+            'book',
+            'lostDamagedItem' => function ($query) {
+                $query->with('histories')->latest('created_at');
+            }
+        ])
             ->select('borrows.*');
 
         // Apply status filter
@@ -247,7 +253,7 @@ class DashboardController extends Controller
         $transactions = $transactionsQuery->orderBy($sortBy, $sortOrder)
             ->paginate(10, ['*'], 'transactionsPage');
 
-        // Enrich transactions with borrower names
+        // Enrich transactions with borrower names and status information
         $transactions->getCollection()->transform(function ($transaction) {
             $borrower = $transaction->role === 'teacher' 
                 ? \App\Models\Teacher::withTrashed()->find($transaction->user_id)
@@ -258,6 +264,14 @@ class DashboardController extends Controller
                 : 'Unknown';
             
             $transaction->borrower_type = $transaction->role === 'teacher' ? 'Teacher' : 'Student';
+            
+            // Get the transaction status including lost/damaged/repaired/found transitions
+            $transaction->transaction_status = $transaction->getTransactionStatus();
+            $transaction->transaction_status_label = $transaction->getTransactionStatusLabel();
+            $transaction->transaction_loss_type = $transaction->getLossType();
+            
+            // Add flag to indicate if this is a lost/damaged transaction
+            $transaction->is_lost_or_damaged = $transaction->isLostOrDamaged();
             
             return $transaction;
         });

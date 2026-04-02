@@ -100,7 +100,26 @@ document.addEventListener('DOMContentLoaded', function(){
     const sectionInput = document.getElementById('section_input');
     const hidden = document.getElementById('grade_section_hidden');
     const form = document.querySelector('form[action*="users.store"]');
+    const firstNameInput = document.getElementById('first_name');
+    const lastNameInput = document.getElementById('last_name');
     if (!form) return;
+
+    // Auto-capitalize first and last names as user types
+    function capitalizeInput(input) {
+        input.value = input.value
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    }
+
+    firstNameInput.addEventListener('input', function() {
+        capitalizeInput(this);
+    });
+
+    lastNameInput.addEventListener('input', function() {
+        capitalizeInput(this);
+    });
 
     function syncHidden() {
         const g = gradeSelect.value ? gradeSelect.value : '';

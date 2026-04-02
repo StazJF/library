@@ -1,6 +1,53 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    /* Status badge styling for new statuses */
+    .badge.bg-repaired {
+        background-color: #198754 !important;
+        color: white;
+    }
+    
+    .badge.bg-found {
+        background-color: #20c997 !important;
+        color: white;
+    }
+    
+    /* Status transition indicators */
+    .status-indicator {
+        font-size: 0.9rem;
+        margin-left: 0.3rem;
+        vertical-align: middle;
+    }
+    
+    .status-indicator.damaged {
+        color: #dc3545;
+        title: "Damaged - For Repair";
+    }
+    
+    .status-indicator.repaired {
+        color: #198754;
+    }
+    
+    .status-indicator.lost {
+        color: #fd7e14;
+    }
+    
+    .status-indicator.found {
+        color: #20c997;
+    }
+    
+    /* Table row highlight for lost/damaged items */
+    tr:has(.status-indicator.damaged),
+    tr:has(.status-indicator.lost) {
+        background-color: #fff3cd;
+    }
+    
+    /* Smooth transition for status changes */
+    .badge {
+        transition: all 0.2s ease;
+    }
+</style>
 <div class="container py-4">
     <h1 class="h3 mb-3">Reports & Analytics</h1>
 
@@ -126,24 +173,11 @@
                         <tbody>
                             @forelse($transactions as $transaction)
                                 @php
-                                    // Determine status display
-                                    $isOverdue = is_null($transaction->returned_at) && \Carbon\Carbon::parse($transaction->due_date)->isPast();
-                                    
-                                    // If transaction has a return_status, use it; otherwise, compute based on returned_at
-                                    if (!is_null($transaction->returned_at) && $transaction->return_status) {
-                                        $statusText = $transaction->return_status;
-                                        $statusLabel = \App\Models\Borrow::getStatusLabel($statusText);
-                                        $statusClass = \App\Models\Borrow::getStatusColor($statusText);
-                                    } else if (is_null($transaction->returned_at)) {
-                                        $statusLabel = $isOverdue ? 'Overdue' : 'Active';
-                                        $statusClass = $isOverdue ? 'danger' : 'warning';
-                                        $statusText = '';
-                                    } else {
-                                        // Fallback for old records without return_status
-                                        $statusLabel = 'Returned';
-                                        $statusClass = 'success';
-                                        $statusText = '';
-                                    }
+                                    // Use the new transaction status from controller enrichment
+                                    $statusLabel = $transaction->transaction_status_label ?? 'Unknown';
+                                    $statusClass = \App\Models\Borrow::getStatusColor($transaction->transaction_status ?? '');
+                                    $lossType = $transaction->transaction_loss_type;
+                                    $isLostOrDamaged = $transaction->is_lost_or_damaged ?? false;
                                 @endphp
                                 <tr>
                                     <td><span class="badge bg-light text-dark">{{ $transaction->id }}</span></td>
@@ -168,12 +202,19 @@
                                     </td>
                                     <td>
                                         <span class="badge bg-{{ $statusClass }}">{{ $statusLabel }}</span>
-                                        @if($transaction->return_status === 'damaged_for_repair')
-                                            <i class="bi bi-exclamation-circle" title="Marked for Repair"></i>
-                                        @elseif($transaction->return_status === 'lost_and_found')
-                                            <i class="bi bi-question-circle" title="Lost Item"></i>
+                                        <!-- Status transition icons and indicators -->
+                                        @if($isLostOrDamaged)
+                                            @if($lossType === 'damaged')
+                                                <i class="bi bi-tools status-indicator damaged" title="Damaged - For Repair"></i>
+                                            @elseif($lossType === 'repaired')
+                                                <i class="bi bi-check-circle status-indicator repaired" title="Repaired"></i>
+                                            @elseif($lossType === 'lost')
+                                                <i class="bi bi-exclamation-triangle status-indicator lost" title="Lost"></i>
+                                            @elseif($lossType === 'found')
+                                                <i class="bi bi-search status-indicator found" title="Found"></i>
+                                            @endif
                                         @elseif($transaction->return_status === 'late_return')
-                                            <i class="bi bi-clock" title="Late Return"></i>
+                                            <i class="bi bi-clock status-indicator" title="Late Return" style="color: #fd7e14;"></i>
                                         @endif
                                     </td>
                                 </tr>

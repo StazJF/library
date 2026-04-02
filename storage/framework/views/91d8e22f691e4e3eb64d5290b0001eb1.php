@@ -297,173 +297,204 @@
 
 
 <div class="modal fade" id="viewBookModal" tabindex="-1" aria-labelledby="viewBookModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-fullscreen-md-down" style="max-width: 1400px; width: 95vw;">
         <div class="modal-content">
-            <div class="modal-header border-0">
+            <div class="modal-header border-0 pb-0">
                 <div>
                     <h5 class="modal-title" id="viewBookModalLabel">
                         <i class="bi bi-book-fill me-2"></i>Book Details
                     </h5>
-                    <p class="text-muted small mb-0">View complete information about this book</p>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
 
-            
-            <ul class="nav nav-tabs border-bottom" id="bookDetailsTabs" role="tablist">
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link active" id="bookInfoTab" data-bs-toggle="tab" data-bs-target="#bookInfoPane" type="button" role="tab" aria-controls="bookInfoPane" aria-selected="true">
-                        <i class="bi bi-info-circle me-1"></i>Book Information
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="copiesTab" data-bs-toggle="tab" data-bs-target="#copiesPane" type="button" role="tab" aria-controls="copiesPane" aria-selected="false">
-                        <i class="bi bi-stack me-1"></i>Physical Copies <span class="badge bg-secondary ms-2" id="copiesBadge">0</span>
-                    </button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="repairedTab" data-bs-toggle="tab" data-bs-target="#repairedPane" type="button" role="tab" aria-controls="repairedPane" aria-selected="false">
-                        <i class="bi bi-wrench me-1"></i>Repaired <span class="badge bg-secondary ms-2" id="repairedBadge">0</span>
-                    </button>
-                </li>
-            </ul>
-
             <div class="modal-body">
-                <div class="tab-content" id="bookDetailsContent">
+                <div class="row g-3 h-100">
                     
-                    <div class="tab-pane fade show active" id="bookInfoPane" role="tabpanel" aria-labelledby="bookInfoTab">
-                        
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Title</label>
-                                <p class="fw-semibold" id="modalTitle">-</p>
+                    <div class="col-lg-4">
+                        <div class="book-info-section">
+                            <h6 class="text-muted small mb-3">
+                                <i class="bi bi-info-circle me-2"></i>Book Information
+                            </h6>
+                            
+                            
+                            <div class="info-item">
+                                <label class="text-muted">Title</label>
+                                <p id="modalTitle">-</p>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Author</label>
-                                <p class="fw-semibold" id="modalAuthor">-</p>
-                            </div>
-                        </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">ISBN</label>
-                                <p class="fw-semibold" id="modalISBN">-</p>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Author</label>
+                                        <p id="modalAuthor">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">ISBN</label>
+                                        <p id="modalISBN">-</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Category</label>
-                                <p class="fw-semibold" id="modalCategory">-</p>
-                            </div>
-                        </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Publisher</label>
-                                <p class="fw-semibold" id="modalPublisher">-</p>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Category</label>
+                                        <p id="modalCategory">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Publisher</label>
+                                        <p id="modalPublisher">-</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Published Year</label>
-                                <p class="fw-semibold" id="modalPublishedYear">-</p>
-                            </div>
-                        </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Pages</label>
-                                <p class="fw-semibold" id="modalPages">-</p>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Published Year</label>
+                                        <p id="modalPublishedYear">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Pages</label>
+                                        <p id="modalPages">-</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Edition</label>
-                                <p class="fw-semibold" id="modalEdition">-</p>
-                            </div>
-                        </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Condition</label>
-                                <p class="fw-semibold" id="modalCondition">-</p>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Edition</label>
+                                        <p id="modalEdition">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Condition</label>
+                                        <p id="modalCondition">-</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Acquisition Type</label>
-                                <p class="fw-semibold" id="modalAcquisitionType">-</p>
-                            </div>
-                        </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Source of Funds</label>
-                                <p class="fw-semibold" id="modalSourceOfFunds">-</p>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Acquisition Type</label>
+                                        <p id="modalAcquisitionType">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Source of Funds</label>
+                                        <p id="modalSourceOfFunds">-</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Cost Price</label>
-                                <p class="fw-semibold" id="modalCostPrice">-</p>
-                            </div>
-                        </div>
 
-                        <div class="row mb-4">
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Purchase Price</label>
-                                <p class="fw-semibold" id="modalPurchasePrice">-</p>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Cost Price</label>
+                                        <p id="modalCostPrice">-</p>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="info-item">
+                                        <label class="text-muted">Purchase Price</label>
+                                        <p id="modalPurchasePrice">-</p>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="col-md-6 mb-3">
-                                <label class="text-muted small">Available / Total Copies</label>
-                                <p class="fw-semibold" id="modalCopies">-</p>
+
+                            <div class="info-item">
+                                <label class="text-muted">Available / Total Copies</label>
+                                <p id="modalCopies">-</p>
                             </div>
                         </div>
                     </div>
 
                     
-                    <div class="tab-pane fade" id="copiesPane" role="tabpanel" aria-labelledby="copiesTab">
-                        
-                        <div class="mb-3" id="conditionFiltersContainer">
-                            <div class="btn-group" role="group" aria-label="Filter by condition">
-                                <button type="button" class="btn btn-sm btn-outline-secondary condition-filter-btn active" data-condition="">
-                                    <i class="bi bi-funnel me-1"></i>All
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-success condition-filter-btn" data-condition="Brand New">
-                                    <i class="bi bi-star-fill me-1"></i>Brand New
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-warning condition-filter-btn" data-condition="Old">
-                                    <i class="bi bi-clock-history me-1"></i>Old
-                                </button>
-                            </div>
-                        </div>
-                        <div id="noCopiesMessage" class="alert alert-info" style="display: none;">
-                            <i class="bi bi-info-circle me-2"></i>No physical copies available
-                        </div>
-                        <div class="table-responsive" id="copiesTableContainer" style="display: none;">
-                            <table class="table table-hover table-sm align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 20%;">Control Number</th>
-                                        <th style="width: 20%;">Condition</th>
-                                        <th style="width: 20%;">Year Donated</th>
-                                        <th style="width: 20%;">Status</th>
-                                        <th style="width: 20%;">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="copiesTableBody">
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <div class="col-lg-8">
+                        <div class="tables-section">
+                            
+                            <ul class="nav nav-tabs border-bottom nav-tabs-compact" id="bookDetailsTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="copiesTab" data-bs-toggle="tab" data-bs-target="#copiesPane" type="button" role="tab" aria-controls="copiesPane" aria-selected="true">
+                                        <i class="bi bi-stack me-1"></i>Copies <span class="badge bg-secondary ms-1" id="copiesBadge">0</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="repairedTab" data-bs-toggle="tab" data-bs-target="#repairedPane" type="button" role="tab" aria-controls="repairedPane" aria-selected="false">
+                                        <i class="bi bi-wrench me-1"></i>Repaired <span class="badge bg-secondary ms-1" id="repairedBadge">0</span>
+                                    </button>
+                                </li>
+                            </ul>
 
-                    
-                    <div class="tab-pane fade" id="repairedPane" role="tabpanel" aria-labelledby="repairedTab">
-                        <div id="noRepairedMessage" class="alert alert-info" style="display: none;">
-                            <i class="bi bi-info-circle me-2"></i>No repaired items
-                        </div>
-                        <div class="table-responsive" id="repairedTableContainer" style="display: none;">
-                            <table class="table table-hover table-sm align-middle">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th style="width: 30%;">Control Number</th>
-                                        <th style="width: 35%;">Originally Reported</th>
-                                        <th style="width: 35%;">Repaired Date</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="repairedTableBody">
-                                </tbody>
-                            </table>
+                            
+                            <div class="tab-content tables-content" id="bookDetailsContent">
+                                
+                                <div class="tab-pane fade show active" id="copiesPane" role="tabpanel" aria-labelledby="copiesTab">
+                                    
+                                    <div class="mb-2" id="conditionFiltersContainer">
+                                        <div class="btn-group" role="group" aria-label="Filter by condition">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary condition-filter-btn active" data-condition="">
+                                                <i class="bi bi-funnel me-1"></i>All
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-success condition-filter-btn" data-condition="Brand New">
+                                                <i class="bi bi-star-fill me-1"></i>Brand New
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-warning condition-filter-btn" data-condition="Old">
+                                                <i class="bi bi-clock-history me-1"></i>Old
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div id="noCopiesMessage" class="alert alert-info alert-sm" style="display: none;">
+                                        <i class="bi bi-info-circle me-2"></i>No physical copies available
+                                    </div>
+                                    <div class="scrollable-table-container" id="copiesTableContainer" style="display: none;">
+                                        <table class="table table-hover table-sm align-middle mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 30%;">Control Number</th>
+                                                    <th style="width: 25%;">Condition</th>
+                                                    <th style="width: 20%;">Year</th>
+                                                    <th style="width: 15%;">Status</th>
+                                                    <th style="width: 10%; text-align: center;">Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="copiesTableBody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                
+                                <div class="tab-pane fade" id="repairedPane" role="tabpanel" aria-labelledby="repairedTab">
+                                    <div id="noRepairedMessage" class="alert alert-info alert-sm" style="display: none;">
+                                        <i class="bi bi-info-circle me-2"></i>No repaired items
+                                    </div>
+                                    <div class="scrollable-table-container" id="repairedTableContainer" style="display: none;">
+                                        <table class="table table-hover table-sm align-middle mb-0">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 35%;">Control Number</th>
+                                                    <th style="width: 32.5%;">Reported</th>
+                                                    <th style="width: 32.5%;">Repaired Date</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="repairedTableBody">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -484,8 +515,6 @@
         </div>
     </div>
 </div>
-
-
 <div class="modal fade" id="addCopiesModal" tabindex="-1" aria-labelledby="addCopiesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -581,10 +610,168 @@
         padding: 0.375rem 0.75rem;
     }
 
-    /* Table scrollbar styles */
-    .table-responsive {
-        max-height: 600px;
+    /* Book Details Modal Layout */
+    #viewBookModal .modal-body {
+        padding: 1.5rem;
+        max-height: 75vh;
         overflow-y: auto;
+    }
+
+    /* Left Section - Book Information */
+    .book-info-section {
+        padding-right: 1.5rem;
+        border-right: 1px solid #e9ecef;
+        max-height: 75vh;
+        overflow-y: auto;
+    }
+
+    .info-item {
+        margin-bottom: 0.65rem;
+    }
+
+    .info-item label {
+        display: block;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.2rem;
+        color: #6c757d !important;
+    }
+
+    .info-item p {
+        margin: 0;
+        font-size: 0.9rem;
+        font-weight: 500;
+        line-height: 1.3;
+        word-break: break-word;
+    }
+
+    /* Right Section - Tables */
+    .tables-section {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+    }
+
+    .tables-section .nav-tabs-compact {
+        background-color: #f8f9fa;
+        border-radius: 0.25rem 0.25rem 0 0;
+        margin-bottom: 0;
+        flex-shrink: 0;
+    }
+
+    .nav-tabs-compact .nav-link {
+        border: none;
+        color: #495057;
+        font-weight: 500;
+        padding: 0.55rem 0.9rem;
+        font-size: 0.85rem;
+    }
+
+    .nav-tabs-compact .nav-link:hover {
+        color: #0d6efd;
+        border-color: transparent;
+    }
+
+    .nav-tabs-compact .nav-link.active {
+        color: #0d6efd;
+        background-color: white;
+        border-bottom: 2px solid #0d6efd;
+    }
+
+    .nav-tabs-compact .badge {
+        font-size: 0.65rem;
+        padding: 0.25rem 0.4rem;
+    }
+
+    /* Scrollable Tables Container */
+    .tables-content {
+        flex: 1;
+        overflow-y: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .tables-content .tab-pane {
+        display: none;
+        flex: 1;
+        overflow-y: hidden;
+    }
+
+    .tables-content .tab-pane.show {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .scrollable-table-container {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: auto;
+        border: 1px solid #e9ecef;
+        border-radius: 0.25rem;
+        max-height: 420px;
+    }
+
+    .scrollable-table-container table {
+        margin-bottom: 0;
+    }
+
+    .scrollable-table-container thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .scrollable-table-container tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .scrollable-table-container td {
+        padding: 0.5rem !important;
+        vertical-align: middle;
+        font-size: 0.88rem;
+        white-space: nowrap;
+    }
+
+    .scrollable-table-container thead th {
+        padding: 0.6rem !important;
+        font-size: 0.8rem;
+        font-weight: 600;
+        background-color: #f8f9fa;
+        white-space: nowrap;
+    }
+
+    /* Alert Styling */
+    .alert-sm {
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.65rem;
+        font-size: 0.85rem;
+    }
+
+    /* Condition Filter Buttons */
+    #conditionFiltersContainer .btn-group {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.65rem;
+    }
+
+    #conditionFiltersContainer .condition-filter-btn {
+        padding: 0.3rem 0.55rem;
+        font-size: 0.75rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+
+    #conditionFiltersContainer .condition-filter-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    #conditionFiltersContainer .condition-filter-btn.active {
+        font-weight: 600;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
     }
 
     /* Tab navigation styles */
@@ -661,28 +848,81 @@
         max-height: 90vh;
     }
 
-    /* Condition filter buttons in modal */
-    #conditionFiltersContainer .btn-group {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
+    /* Responsive adjustments */
+    @media (max-width: 1199.98px) {
+        .scrollable-table-container {
+            max-height: 380px;
+        }
+
+        .info-item {
+            margin-bottom: 0.6rem;
+        }
     }
 
-    #conditionFiltersContainer .condition-filter-btn {
-        padding: 0.375rem 0.75rem;
-        font-size: 0.85rem;
-        font-weight: 500;
-        transition: all 0.2s ease;
+    @media (max-width: 991.98px) {
+        .book-info-section {
+            padding-right: 0;
+            border-right: none;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .scrollable-table-container {
+            max-height: 350px;
+        }
+
+        #viewBookModal .modal-body {
+            max-height: 80vh;
+        }
+
+        .info-item p {
+            font-size: 0.85rem;
+        }
+
+        .scrollable-table-container td {
+            font-size: 0.8rem;
+            padding: 0.4rem !important;
+        }
+
+        .scrollable-table-container thead th {
+            font-size: 0.75rem;
+            padding: 0.5rem !important;
+        }
     }
 
-    #conditionFiltersContainer .condition-filter-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    @media (max-width: 768px) {
+        #viewBookModal .modal-body {
+            padding: 1rem;
+        }
+
+        .book-info-section {
+            padding-left: 0;
+            padding-right: 0;
+        }
+
+        .info-item {
+            margin-bottom: 0.5rem;
+        }
+
+        .info-item label {
+            font-size: 0.65rem;
+            margin-bottom: 0.15rem;
+        }
+
+        .info-item p {
+            font-size: 0.8rem;
+        }
+
+        .scrollable-table-container {
+            max-height: 300px;
+        }
     }
 
-    #conditionFiltersContainer .condition-filter-btn.active {
-        font-weight: 600;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    /* Table scrollbar styles */
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
     }
 </style>
 

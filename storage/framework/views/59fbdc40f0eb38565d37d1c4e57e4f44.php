@@ -4,6 +4,9 @@
     <a href="<?php echo e(route('users.index')); ?>" class="btn btn-secondary btn-sm">
         <i class="bi bi-arrow-left"></i> Back to Students
     </a>
+    <a href="<?php echo e(route('users.print-user', $user->id)); ?>" class="btn btn-primary btn-sm" target="_blank">
+        <i class="bi bi-printer"></i> Print
+    </a>
 </div>
 
 <div class="row">

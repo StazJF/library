@@ -141,7 +141,7 @@
     {{-- Borrowed Books Modal --}}
     @foreach($teachers as $teacher)
         <div class="modal fade" id="borrowModal{{ $teacher->id }}" tabindex="-1" aria-labelledby="borrowModalLabel{{ $teacher->id }}" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
+            <div class="modal-dialog modal-xl">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="borrowModalLabel{{ $teacher->id }}">
@@ -153,38 +153,40 @@
                         <h6 class="text-muted mb-3">Teacher: <strong>{{ $teacher->name }}</strong></h6>
                         @php $allBorrows = $teacher->borrows; @endphp
                         @if($allBorrows->count() > 0)
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Title</th>
-                                        <th>Author</th>
-                                        <th>ISBN</th>
-                                        <th>Borrowed At</th>
-                                        <th>Due Date</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($allBorrows as $borrow)
-                                        @php
-                                            $bookTitle = $borrow->book ? $borrow->book->title : 'Book not found';
-                                            $bookAuthor = $borrow->book ? ($borrow->book->author ?? 'N/A') : 'N/A';
-                                            $bookIsbn = $borrow->book ? ($borrow->book->isbn ?? 'N/A') : 'N/A';
-                                            $borrowedAt = $borrow->borrowed_at ? \Carbon\Carbon::parse($borrow->borrowed_at)->format('M d, Y') : 'N/A';
-                                            $dueDate = $borrow->due_date ? \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') : 'N/A';
-                                            $status = $borrow->returned_at ? 'Returned' : 'Active';
-                                        @endphp
+                            <div style="max-height: 450px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.25rem;">
+                                <table class="table table-bordered mb-0">
+                                    <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
                                         <tr>
-                                            <td>{{ $bookTitle }}</td>
-                                            <td>{{ $bookAuthor }}</td>
-                                            <td>{{ $bookIsbn }}</td>
-                                            <td>{{ $borrowedAt }}</td>
-                                            <td>{{ $dueDate }}</td>
-                                            <td>{{ $status }}</td>
+                                            <th>Title</th>
+                                            <th>Author</th>
+                                            <th>ISBN</th>
+                                            <th>Borrowed At</th>
+                                            <th>Due Date</th>
+                                            <th>Status</th>
                                         </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach($allBorrows as $borrow)
+                                            @php
+                                                $bookTitle = $borrow->book ? $borrow->book->title : 'Book not found';
+                                                $bookAuthor = $borrow->book ? ($borrow->book->author ?? 'N/A') : 'N/A';
+                                                $bookIsbn = $borrow->book ? ($borrow->book->isbn ?? 'N/A') : 'N/A';
+                                                $borrowedAt = $borrow->borrowed_at ? \Carbon\Carbon::parse($borrow->borrowed_at)->format('M d, Y') : 'N/A';
+                                                $dueDate = $borrow->due_date ? \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') : 'N/A';
+                                                $status = $borrow->returned_at ? 'Returned' : 'Active';
+                                            @endphp
+                                            <tr>
+                                                <td>{{ $bookTitle }}</td>
+                                                <td>{{ $bookAuthor }}</td>
+                                                <td>{{ $bookIsbn }}</td>
+                                                <td>{{ $borrowedAt }}</td>
+                                                <td>{{ $dueDate }}</td>
+                                                <td>{{ $status }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
                         @else
                             <div class="text-muted">No books borrowed.</div>
                         @endif
