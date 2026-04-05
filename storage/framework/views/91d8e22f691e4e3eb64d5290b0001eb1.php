@@ -813,6 +813,20 @@
         padding: 0.35rem 0.6rem;
     }
 
+    /* Condition badge styling - remove background, update text color */
+    .scrollable-table-container .badge {
+        background-color: transparent !important;
+        border: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+    .scrollable-table-container .badge.bg-success {
+        color: #198754 !important;
+    }
+
+    .scrollable-table-container .badge.bg-warning {
+        color: #ff8c00 !important;
+    }
+
     /* Modal improvements */
     .modal-body {
         padding: 1.5rem;

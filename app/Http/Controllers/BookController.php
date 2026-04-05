@@ -10,6 +10,7 @@ use App\Models\LostDamagedItem;
 use App\Models\LostDamagedItemHistory;
 use App\Models\BookArchive;
 use Illuminate\Http\Request;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -60,49 +61,118 @@ class BookController extends Controller
         $book = Book::findOrFail($bookId);
 
         $additionalCopies = $request->input('additional_copies');
+        $defaultAcquisitionYear = $request->input('acquisition_year');
         $submittedYears = $request->input('copy_years', []);
 
-        // Get existing copies to determine the next control number
-        $existingCopies = $book->copies()->count();
-        $newControlNumbers = $book->control_numbers ?? [];
-        
-        // Extract the base from existing control numbers
-        $baseNumber = '001'; // default
-        if (!empty($newControlNumbers) && is_array($newControlNumbers)) {
-            $firstCtrl = $newControlNumbers[0] ?? null;
-            if ($firstCtrl) {
-                $parts = explode('-', $firstCtrl);
-                if (count($parts) === 2) {
-                    $baseNumber = $parts[0];
-                }
+        // Determine base control number (prefer normalized BookCopy data; JSON fields may be stale)
+        $baseNumber = null;
+        $firstExistingCtrl = $book->copies()
+            ->whereNotNull('control_number')
+            ->orderBy('control_number')
+            ->value('control_number');
+        if ($firstExistingCtrl) {
+            $parts = explode('-', $firstExistingCtrl, 2);
+            if (count($parts) === 2 && trim($parts[0]) !== '') {
+                $baseNumber = trim($parts[0]);
             }
         }
-        
-        // Create new BookCopy records
-        for ($i = 0; $i < $additionalCopies; $i++) {
-            $nextSuffix = $existingCopies + $i + 1;
-            $controlNumber = $baseNumber . '-' . str_pad($nextSuffix, 3, '0', STR_PAD_LEFT);
-            $acquisitionYear = $submittedYears[$i] ?? null;
-            
-            BookCopy::create([
-                'book_id' => $book->id,
-                'control_number' => $controlNumber,
-                'acquisition_year' => $acquisitionYear,
-                'status' => 'available',
-                'condition' => null,
-                'is_lost_damaged' => false,
-            ]);
+
+        if (!$baseNumber) {
+            $baseNumber = trim((string) ($book->call_number ?? ''));
         }
 
-        // Update the book's total copies count
-        $newTotal = $existingCopies + $additionalCopies;
-        $book->update(['copies' => $newTotal]);
+        // If still missing, allocate a new sequential base and persist it on the book
+        if ($baseNumber === '') {
+            $highestBase = 0;
+            $allBooks = Book::query()->select('call_number')->get();
+            foreach ($allBooks as $b) {
+                $cn = trim((string) ($b->call_number ?? ''));
+                if ($cn === '') {
+                    continue;
+                }
+                if (preg_match('/^(\d{1,9})$/', $cn, $m)) {
+                    $num = (int) $m[1];
+                    if ($num > $highestBase) {
+                        $highestBase = $num;
+                    }
+                }
+            }
+
+            $cacheBase = (int) Cache::get('ctrl_base', 0);
+            $nextBase = max($highestBase, $cacheBase) + 1;
+            Cache::put('ctrl_base', $nextBase);
+
+            $baseNumber = str_pad($nextBase, 3, '0', STR_PAD_LEFT);
+            $book->update(['call_number' => $baseNumber]);
+        }
+
+        // Find the highest suffix used so far for this base (within this book)
+        $maxSuffix = $book->copies()
+            ->where('control_number', 'like', $baseNumber . '-%')
+            ->get()
+            ->reduce(function ($max, $copy) use ($baseNumber) {
+                $parts = explode('-', (string) $copy->control_number, 2);
+                if (count($parts) === 2 && $parts[0] === $baseNumber) {
+                    $num = intval($parts[1]);
+                    return $num > $max ? $num : $max;
+                }
+                return $max;
+            }, 0);
+
+        // Pre-generate control numbers and guard against collisions (global unique constraint)
+        $toCreate = [];
+        for ($i = 1; $i <= $additionalCopies; $i++) {
+            $toCreate[] = $baseNumber . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
+        }
+
+        $collisions = BookCopy::whereIn('control_number', $toCreate)->pluck('control_number')->toArray();
+        if (!empty($collisions)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cannot add copies: control number(s) already exist: ' . implode(', ', $collisions),
+            ], 409);
+        }
+
+        // Create new BookCopy records
+        try {
+            for ($i = 0; $i < $additionalCopies; $i++) {
+                $controlNumber = $toCreate[$i];
+                $acquisitionYear = $submittedYears[$i] ?? $defaultAcquisitionYear;
+
+                BookCopy::create([
+                    'book_id' => $book->id,
+                    'control_number' => $controlNumber,
+                    'acquisition_year' => $acquisitionYear,
+                    'status' => 'available',
+                    'condition' => null,
+                    'is_lost_damaged' => false,
+                ]);
+            }
+        } catch (QueryException $e) {
+            $mysqlErrno = $e->errorInfo[1] ?? null;
+            if ((int) $mysqlErrno === 1062) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cannot add copies: one or more generated control numbers already exist. Please refresh and try again.',
+                ], 409);
+            }
+            throw $e;
+        }
+
+        // Update cached integer fields (legacy) to stay in sync with BookCopy records
+        $newCopiesCount = $book->copies()->count();
+        $newAvailableCount = $book->copies()->available()->count();
+        $book->update([
+            'copies' => $newCopiesCount,
+            'available_copies' => $newAvailableCount,
+            'status' => $newAvailableCount > 0 ? 'available' : 'borrowed',
+        ]);
 
         // Log activity
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action'  => 'Added Copies to Book',
-            'details' => "Added {$additionalCopies} copies to '{$book->title}' (Total: {$newTotal})",
+            'details' => "Added {$additionalCopies} copies to '{$book->title}' (Total: {$newCopiesCount})",
         ]);
 
         return response()->json([

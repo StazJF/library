@@ -22,6 +22,7 @@
                         <p><strong>Name:</strong> <?php echo e($user->first_name); ?> <?php echo e($user->last_name); ?></p>
                         <p><strong>Grade & Section:</strong> <?php echo e($user->grade_section ?? '-'); ?></p>
                         <p><strong>LRN:</strong> <?php echo e($user->lrn ?? '-'); ?></p>
+                        <p><strong>Gender:</strong> <?php echo e($user->gender ? ucfirst(strtolower($user->gender)) : '-'); ?></p>
                         <p><strong>Phone:</strong> <?php echo e($user->phone_number ?? '-'); ?></p>
                         <p><strong>Address:</strong> <?php echo e($user->address ?? '-'); ?></p>
                         <p><strong>Total Books Borrowed:</strong> <?php echo e($user->borrows->count()); ?></p>
@@ -109,7 +110,6 @@
     </div>
 </div>
 <?php $__env->stopSection(); ?>
-
 
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\user\Herd\library\resources\views/users/show.blade.php ENDPATH**/ ?>

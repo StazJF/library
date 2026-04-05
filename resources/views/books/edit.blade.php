@@ -2,7 +2,7 @@
 
 @section('content')
 <div class="row justify-content-center">
-    <div class="col-md-6">
+    <div class="col-lg-10">
         <div class="card">
             <div class="card-header">
                 <h4>Edit Book</h4>
@@ -11,258 +11,323 @@
                 <form action="{{ route('books.update', $book) }}" method="POST">
                     @csrf
                     @method('PUT')
-                    <div class="mb-3">
-                        <label for="title" class="form-label">Title</label>
-                        <input type="text" class="form-control" id="title" name="title" value="{{ $book->title }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="author" class="form-label">Author</label>
-                        <input type="text" class="form-control" id="author" name="author" value="{{ $book->author }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="publisher" class="form-label">Publisher</label>
-                        <input type="text" class="form-control" id="publisher" name="publisher" value="{{ $book->publisher }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="isbn" class="form-label">ISBN</label>
-                        <input type="text" class="form-control" id="isbn" name="isbn" value="{{ $book->isbn }}" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="call_number" class="form-label">Control Number Base</label>
-                        <input type="text" class="form-control @error('call_number') is-invalid @enderror" id="call_number" name="call_number" value="{{ old('call_number', $book->call_number ?? $nextCtrlBase) }}">
-                        @error('call_number')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
-                    @php
-                        $selectedCat = old('category', $book->category);
-                        $isOther = $selectedCat === 'other' || (!$categories->contains($selectedCat) && $selectedCat !== '');
-                    @endphp
-                    <div class="mb-3">
-                        <label for="category" class="form-label">Category</label>
-                        <select name="category" id="category" class="form-select @error('category') is-invalid @enderror" required>
-                            <option value="">-- Select Category --</option>
-                            @foreach($categories as $cat)
-                                <option value="{{ $cat }}" {{ $selectedCat === $cat ? 'selected' : '' }}>{{ $cat }}</option>
-                            @endforeach
-                            <option value="other" {{ $selectedCat === 'other' ? 'selected' : '' }}>Other</option>
-                        </select>
-                        <input type="text" name="other_category" id="other_category" class="form-control mt-2 @error('other_category') is-invalid @enderror" placeholder="Enter category" value="" style="display: none;">
-                        @error('category')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                        @error('other_category')
-                            <div class="invalid-feedback">{{ $message }}</div>
-                        @enderror
-                    </div>
+                    
+                    <div class="row g-4">
+                        {{-- Left Column: Book Information Form --}}
+                        <div class="col-lg-5">
+                            <div class="book-form-section">
+                                <h6 class="text-muted mb-3"><i class="bi bi-book me-2"></i>Book Information</h6>
+                                
+                                <div class="mb-3">
+                                    <label for="title" class="form-label">Title</label>
+                                    <input type="text" class="form-control" id="title" name="title" value="{{ $book->title }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="author" class="form-label">Author</label>
+                                    <input type="text" class="form-control" id="author" name="author" value="{{ $book->author }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="publisher" class="form-label">Publisher</label>
+                                    <input type="text" class="form-control" id="publisher" name="publisher" value="{{ $book->publisher }}">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="isbn" class="form-label">ISBN</label>
+                                    <input type="text" class="form-control" id="isbn" name="isbn" value="{{ $book->isbn }}" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="call_number" class="form-label">Control Number Base</label>
+                                    <input type="text" class="form-control @error('call_number') is-invalid @enderror" id="call_number" name="call_number" value="{{ old('call_number', $book->call_number ?? $nextCtrlBase) }}">
+                                    @error('call_number')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+                                @php
+                                    $selectedCat = old('category', $book->category);
+                                    $isOther = $selectedCat === 'other' || (!$categories->contains($selectedCat) && $selectedCat !== '');
+                                @endphp
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">Category</label>
+                                    <select name="category" id="category" class="form-select @error('category') is-invalid @enderror" required>
+                                        <option value="">-- Select Category --</option>
+                                        @foreach($categories as $cat)
+                                            <option value="{{ $cat }}" {{ $selectedCat === $cat ? 'selected' : '' }}>{{ $cat }}</option>
+                                        @endforeach
+                                        <option value="other" {{ $selectedCat === 'other' ? 'selected' : '' }}>Other</option>
+                                    </select>
+                                    <input type="text" name="other_category" id="other_category" class="form-control mt-2 @error('other_category') is-invalid @enderror" placeholder="Enter category" value="" style="display: none;">
+                                    @error('category')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                    @error('other_category')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
-                    {{-- added fields from create.blade --}}
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="published_year" class="form-label">Published Year</label>
-                            <input
-                                type="number"
-                                name="published_year"
-                                id="published_year"
-                                class="form-control @error('published_year') is-invalid @enderror"
-                                value="{{ old('published_year', $book->published_year) }}"
-                                min="1900"
-                                max="{{ date('Y') + 1 }}"
-                            >
-                            @error('published_year')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        {{-- <div class="col-md-4 mb-3">
-                            {{-- <label for="cost_price" class="form-label">Cost Price</label>
-                            <input
-                                type="number"
-                                name="cost_price"
-                                id="cost_price"
-                                class="form-control @error('cost_price') is-invalid @enderror"
-                                value="{{ old('cost_price', $book->cost_price) }}"
-                                min="0"
-                                step="0.01"
-                            >
-                            @error('cost_price')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror 
-                        </div> --}}
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="pages" class="form-label">Pages</label>
-                            <input
-                                type="number"
-                                name="pages"
-                                id="pages"
-                                class="form-control @error('pages') is-invalid @enderror"
-                                value="{{ old('pages', $book->pages) }}"
-                                min="1"
-                            >
-                            @error('pages')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label for="edition" class="form-label">Edition</label>
-                            <input
-                                type="text"
-                                name="edition"
-                                id="edition"
-                                class="form-control @error('edition') is-invalid @enderror"
-                                value="{{ old('edition', $book->edition) }}"
-                                placeholder="e.g., 3rd Edition"
-                            >
-                            @error('edition')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label for="condition" class="form-label">Condition</label>
-                            <select
-                                name="condition"
-                                id="condition"
-                                class="form-select @error('condition') is-invalid @enderror"
-                            >
-                                <option value="">-- Select Condition --</option>
-                                <option value="Brand New" {{ old('condition', $book->condition) === 'Brand New' ? 'selected' : '' }}>Brand New</option>
-                                <option value="Old" {{ old('condition', $book->condition) === 'Old' ? 'selected' : '' }}>Old</option>
-                            </select>
-                            @error('condition')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="acquisition_type" class="form-label">Acquisition Type</label>
-                            <select
-                                name="acquisition_type"
-                                id="acquisition_type"
-                                class="form-select @error('acquisition_type') is-invalid @enderror"
-                            >
-                                <option value="">-- Select Type --</option>
-                                <option value="purchase" {{ old('acquisition_type', $book->acquisition_type) === 'purchase' ? 'selected' : '' }}>Purchase</option>
-                                <option value="donation" {{ old('acquisition_type', $book->acquisition_type) === 'donation' ? 'selected' : '' }}>Donation</option>
-                                <option value="exchange" {{ old('acquisition_type', $book->acquisition_type) === 'exchange' ? 'selected' : '' }}>Exchange</option>
-                                <option value="grant" {{ old('acquisition_type', $book->acquisition_type) === 'grant' ? 'selected' : '' }}>Grant</option>
-                            </select>
-                            @error('acquisition_type')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                        <div class="col-md-6 mb-3">
-                            <label for="source_of_funds" class="form-label">Source of Funds</label>
-                            <input
-                                type="text"
-                                name="source_of_funds"
-                                id="source_of_funds"
-                                class="form-control @error('source_of_funds') is-invalid @enderror"
-                                value="{{ old('source_of_funds', $book->source_of_funds) }}"
-                                placeholder="e.g., School Budget, PTA Fund"
-                            >
-                            @error('source_of_funds')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label for="purchase_price" class="form-label">Purchase Price</label>
-                            <input
-                                type="number"
-                                name="purchase_price"
-                                id="purchase_price"
-                                class="form-control @error('purchase_price') is-invalid @enderror"
-                                value="{{ old('purchase_price', $book->purchase_price) }}"
-                                min="0"
-                                step="0.01"
-                            >
-                            @error('purchase_price')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                    {{-- end added fields --}}
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label for="published_year" class="form-label">Published Year</label>
+                                        <input
+                                            type="number"
+                                            name="published_year"
+                                            id="published_year"
+                                            class="form-control @error('published_year') is-invalid @enderror"
+                                            value="{{ old('published_year', $book->published_year) }}"
+                                            min="1900"
+                                            max="{{ date('Y') + 1 }}"
+                                        >
+                                        @error('published_year')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                    <div class="col-6">
+                                        <label for="pages" class="form-label">Pages</label>
+                                        <input
+                                            type="number"
+                                            name="pages"
+                                            id="pages"
+                                            class="form-control @error('pages') is-invalid @enderror"
+                                            value="{{ old('pages', $book->pages) }}"
+                                            min="1"
+                                        >
+                                        @error('pages')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
 
-                    <div class="mb-3">
-                        <label for="copies" class="form-label">Add Number of Copies</label>
-                        <input type="number" class="form-control" id="copies" name="copies" value="0" min="0" required>
-                        <small class="form-text text-muted">Current copies: {{ $book->copies }}. Enter a number to add more copies.</small>
-                    </div>
+                                <div class="mb-3">
+                                    <label for="edition" class="form-label">Edition</label>
+                                    <input
+                                        type="text"
+                                        name="edition"
+                                        id="edition"
+                                        class="form-control @error('edition') is-invalid @enderror"
+                                        value="{{ old('edition', $book->edition) }}"
+                                        placeholder="e.g., 3rd Edition"
+                                    >
+                                    @error('edition')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
 
-                    {{-- Physical Copies Details --}}
-                    <div class="card bg-light mb-4 mt-3">
-                        <div class="card-header">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h6 class="mb-0">Physical Copies Details</h6>
-                                <div class="d-flex gap-2">
-                                    <button type="button" class="btn btn-sm btn-outline-danger" id="deleteSelectedCopiesBtn">
-                                        <i class="bi bi-trash me-1"></i>Delete Selected
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-outline-primary" id="addCopyBtn">
-                                        <i class="bi bi-plus me-1"></i>Add Copy
-                                    </button>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <label for="condition" class="form-label">Condition</label>
+                                        <select
+                                            name="condition"
+                                            id="condition"
+                                            class="form-select @error('condition') is-invalid @enderror"
+                                        >
+                                            <option value="">-- Select --</option>
+                                            <option value="Brand New" {{ old('condition', $book->condition) === 'Brand New' ? 'selected' : '' }}>Brand New</option>
+                                            <option value="Old" {{ old('condition', $book->condition) === 'Old' ? 'selected' : '' }}>Old</option>
+                                        </select>
+                                        @error('condition')
+                                            <div class="invalid-feedback">{{ $message }}</div>
+                                        @enderror
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="acquisition_type" class="form-label">Acquisition Type</label>
+                                    <select
+                                        name="acquisition_type"
+                                        id="acquisition_type"
+                                        class="form-select @error('acquisition_type') is-invalid @enderror"
+                                    >
+                                        <option value="">-- Select Type --</option>
+                                        <option value="purchase" {{ old('acquisition_type', $book->acquisition_type) === 'purchase' ? 'selected' : '' }}>Purchase</option>
+                                        <option value="donation" {{ old('acquisition_type', $book->acquisition_type) === 'donation' ? 'selected' : '' }}>Donation</option>
+                                        <option value="exchange" {{ old('acquisition_type', $book->acquisition_type) === 'exchange' ? 'selected' : '' }}>Exchange</option>
+                                        <option value="grant" {{ old('acquisition_type', $book->acquisition_type) === 'grant' ? 'selected' : '' }}>Grant</option>
+                                    </select>
+                                    @error('acquisition_type')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="source_of_funds" class="form-label">Source of Funds</label>
+                                    <input
+                                        type="text"
+                                        name="source_of_funds"
+                                        id="source_of_funds"
+                                        class="form-control @error('source_of_funds') is-invalid @enderror"
+                                        value="{{ old('source_of_funds', $book->source_of_funds) }}"
+                                        placeholder="e.g., School Budget, PTA Fund"
+                                    >
+                                    @error('source_of_funds')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="purchase_price" class="form-label">Purchase Price</label>
+                                    <input
+                                        type="number"
+                                        name="purchase_price"
+                                        id="purchase_price"
+                                        class="form-control @error('purchase_price') is-invalid @enderror"
+                                        value="{{ old('purchase_price', $book->purchase_price) }}"
+                                        min="0"
+                                        step="0.01"
+                                    >
+                                    @error('purchase_price')
+                                        <div class="invalid-feedback">{{ $message }}</div>
+                                    @enderror
                                 </div>
                             </div>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0" id="copiesTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th style="width: 36px;" class="text-center">
-                                                <input type="checkbox" id="selectAllCopies" class="form-check-input" title="Select all">
-                                            </th>
-                                            <th>Ctrl #</th>
-                                            <th style="width: 20%;">Acquisition Year</th>
-                                            <th style="width: 20%;">Status</th>
-                                            <th style="width: 20%;">Condition</th>
-                                            <th style="width: 20%;" class="text-center">Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="copiesContainer">
-                                        @forelse($copies as $copy)
-                                            <tr data-copy-id="{{ $copy->id }}">
-                                                <td class="text-center">
-                                                    <input type="checkbox" class="form-check-input copy-select" value="{{ $copy->id }}" {{ $copy->status === 'borrowed' ? 'disabled' : '' }}>
-                                                </td>
-                                                <td><input type="text" name="control_numbers[]" class="form-control form-control-sm ctrl-number" value="{{ $copy->control_number }}" readonly></td>
-                                                <td><input type="number" name="copy_year[]" class="form-control form-control-sm copy-year-input" min="1900" max="2100" value="{{ $copy->acquisition_year }}" placeholder="Enter year"></td>
-                                                <td><input type="text" name="copy_status[]" class="form-control form-control-sm" value="{{ $copy->status }}" readonly></td>
-                                                <td>
-                                                    <select name="copy_condition[]" data-copy-id="{{ $copy->id }}" class="form-select form-select-sm copy-condition-select">
-                                                        <option value="Brand New" {{ $copy->condition === 'Brand New' ? 'selected' : '' }}>Brand New</option>
-                                                        <option value="Old" {{ $copy->condition === 'Old' ? 'selected' : '' }}>Old</option>
-                                                    </select>
-                                                </td>
-                                                <td class="text-center">
-                                                    <button type="button" class="btn btn-sm btn-danger deleteCopyBtn" data-copy-id="{{ $copy->id }}" data-book-id="{{ $book->id }}" {{ $copy->status === 'borrowed' ? 'disabled' : '' }}>
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="6" class="text-center text-muted py-3">No copies yet. Add copies using the button above.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
+
+                        {{-- Right Column: Physical Copies Details --}}
+                        <div class="col-lg-7">
+                            <div class="card bg-light">
+                                <div class="card-header">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <h6 class="mb-0"><i class="bi bi-boxes me-2"></i>Physical Copies</h6>
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-sm btn-outline-danger" id="deleteSelectedCopiesBtn">
+                                                <i class="bi bi-trash me-1"></i>Delete
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="addCopyBtn">
+                                                <i class="bi bi-plus me-1"></i>Add
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive copies-table-wrapper">
+                                        <table class="table table-sm table-hover mb-0" id="copiesTable">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width: 36px;" class="text-center">
+                                                        <input type="checkbox" id="selectAllCopies" class="form-check-input" title="Select all">
+                                                    </th>
+                                                    <th>Ctrl #</th>
+                                                    <th style="width: 25%;">Year</th>
+                                                    <th style="width: 20%;">Status</th>
+                                                    <th style="width: 20%;">Condition</th>
+                                                    <th style="width: 20%;" class="text-center">Action</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="copiesContainer">
+                                                @forelse($copies as $copy)
+                                                    <tr data-copy-id="{{ $copy->id }}">
+                                                        <td class="text-center">
+                                                            <input type="checkbox" class="form-check-input copy-select" value="{{ $copy->id }}" {{ $copy->status === 'borrowed' ? 'disabled' : '' }}>
+                                                        </td>
+                                                        <td><input type="text" name="control_numbers[]" class="form-control form-control-sm ctrl-number" value="{{ $copy->control_number }}" readonly></td>
+                                                        <td><input type="number" name="copy_year[]" class="form-control form-control-sm copy-year-input" min="1900" max="2100" value="{{ $copy->acquisition_year }}" placeholder="Enter year"></td>
+                                                        <td><input type="text" name="copy_status[]" class="form-control form-control-sm" value="{{ $copy->status }}" readonly></td>
+                                                        <td>
+                                                            <select name="copy_condition[]" data-copy-id="{{ $copy->id }}" class="form-select form-select-sm copy-condition-select">
+                                                                <option value="Brand New" {{ $copy->condition === 'Brand New' ? 'selected' : '' }}>Brand New</option>
+                                                                <option value="Old" {{ $copy->condition === 'Old' ? 'selected' : '' }}>Old</option>
+                                                            </select>
+                                                        </td>
+                                                        <td class="text-center">
+                                                            <button type="button" class="btn btn-sm btn-danger deleteCopyBtn" data-copy-id="{{ $copy->id }}" data-book-id="{{ $book->id }}" {{ $copy->status === 'borrowed' ? 'disabled' : '' }}>
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                @empty
+                                                    <tr>
+                                                        <td colspan="6" class="text-center text-muted py-3">No copies yet. Add copies using the button above.</td>
+                                                    </tr>
+                                                @endforelse
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {{-- Add Copies Field (below table) --}}
+                            {{-- <div class="mt-3">
+                                <label for="copies" class="form-label">Add Number of Copies</label>
+                                <input type="number" class="form-control" id="copies" name="copies" value="0" min="0" required>
+                                <small class="form-text text-muted d-block mt-1">Current copies: {{ $book->copies }}. Enter a number to add more copies.</small>
                             </div>
                         </div>
+                    </div> --}}
+
+                    {{-- Form Actions (Full Width) --}}
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Update Book</button>
+                            <a href="{{ route('books.catalog') }}" class="btn btn-secondary">Cancel</a>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary">Update Book</button>
-                    <a href="{{ route('books.catalog') }}" class="btn btn-secondary">Cancel</a>
                 </form>
             </div>
         </div>
     </div>
 </div>
 @endsection
+
+<style>
+    /* Edit Book Layout Styles */
+    .book-form-section {
+        padding-bottom: 1rem;
+    }
+
+    .copies-table-wrapper {
+        max-height: 500px;
+        overflow-y: auto;
+        border-top: 1px solid #dee2e6;
+    }
+
+    .copies-table-wrapper thead {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+
+    .copies-table-wrapper table {
+        margin-bottom: 0;
+    }
+
+    .copies-table-wrapper tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+
+    .copies-table-wrapper input[readonly],
+    .copies-table-wrapper select {
+        font-size: 0.85rem;
+    }
+
+    .copies-table-wrapper .form-control-sm,
+    .copies-table-wrapper .form-select-sm {
+        min-width: 0;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 991.98px) {
+        .card.bg-light {
+            margin-top: 1.5rem;
+        }
+
+        .copies-table-wrapper {
+            max-height: 450px;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .book-form-section h6 {
+            font-size: 0.95rem;
+        }
+
+        .copies-table-wrapper {
+            max-height: 400px;
+            font-size: 0.85rem;
+        }
+
+        .copies-table-wrapper th,
+        .copies-table-wrapper td {
+            padding: 0.4rem !important;
+        }
+    }
+</style>
 
 @push('scripts')
 <script>

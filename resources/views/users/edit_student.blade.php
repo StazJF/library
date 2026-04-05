@@ -44,6 +44,20 @@
                 </div>
                 <div class="row g-3 mb-3">
                     <div class="col-md-6">
+                        <label for="gender" class="form-label">Gender</label>
+                        @php
+                            $currentGender = strtolower((string) old('gender', $user->gender));
+                        @endphp
+                        <select class="form-select" id="gender" name="gender" required>
+                            <option value="">Select Gender</option>
+                            <option value="male" {{ $currentGender === 'male' ? 'selected' : '' }}>Male</option>
+                            <option value="female" {{ $currentGender === 'female' ? 'selected' : '' }}>Female</option>
+                            <option value="other" {{ $currentGender === 'other' ? 'selected' : '' }}>Other</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
                         <label for="phone_number" class="form-label">Phone Number</label>
                         <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ old('phone_number', $user->phone_number) }}">
                     </div>

@@ -24,6 +24,7 @@
                         <p><strong>Name:</strong> {{ $user->first_name }} {{ $user->last_name }}</p>
                         <p><strong>Grade & Section:</strong> {{ $user->grade_section ?? '-' }}</p>
                         <p><strong>LRN:</strong> {{ $user->lrn ?? '-' }}</p>
+                        <p><strong>Gender:</strong> {{ $user->gender ? ucfirst(strtolower($user->gender)) : '-' }}</p>
                         <p><strong>Phone:</strong> {{ $user->phone_number ?? '-' }}</p>
                         <p><strong>Address:</strong> {{ $user->address ?? '-' }}</p>
                         <p><strong>Total Books Borrowed:</strong> {{ $user->borrows->count() }}</p>
@@ -110,5 +111,4 @@
     </div>
 </div>
 @endsection
-
 

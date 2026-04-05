@@ -126,6 +126,7 @@ class UserController extends Controller
             $request->validate([
                 'first_name'    => 'required|string|max:255',
                 'last_name'     => 'required|string|max:255',
+                'gender'        => 'required|string|in:male,female,other',
                 'grade'         => 'nullable|integer|between:7,12',
                 'strand'        => 'nullable|string|in:ABM,GAS,STEM,HUMSS,ICT,TVL',
                 'section'       => 'nullable|string|max:50',
@@ -150,6 +151,7 @@ class UserController extends Controller
             $user = User::create([
                 'first_name'    => ucwords(strtolower($request->first_name)),
                 'last_name'     => ucwords(strtolower($request->last_name)),
+                'gender'        => strtolower(trim((string) $request->gender)),
                 'grade_section' => $gradeSection,
                 'lrn'           => $request->lrn,
                 'phone_number'  => $request->phone_number,
@@ -220,6 +222,7 @@ class UserController extends Controller
             $request->validate([
                 'first_name'    => 'required|string|max:255',
                 'last_name'     => 'required|string|max:255',
+                'gender'        => 'required|string|in:male,female,other',
                 'grade'         => 'nullable|integer|between:7,12',
                 'strand'        => 'nullable|string|in:ABM,GAS,STEM,HUMSS,ICT,TVL',
                 'section'       => 'nullable|string|max:50',
@@ -244,6 +247,7 @@ class UserController extends Controller
             $user->update([
                 'first_name'    => ucwords(strtolower($request->first_name)),
                 'last_name'     => ucwords(strtolower($request->last_name)),
+                'gender'        => strtolower(trim((string) $request->gender)),
                 'grade_section' => $gradeSection,
                 'lrn'           => $request->lrn,
                 'phone_number'  => $request->phone_number,
@@ -545,5 +549,4 @@ public function printTeachers()
     }
 
 }
-
 

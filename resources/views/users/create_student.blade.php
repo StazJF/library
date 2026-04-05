@@ -69,11 +69,11 @@
                 <div class="row g-3 mb-3">
                     <div class="col-md-4">
                         <label for="gender" class="form-label">Gender <span class="text-danger">*</span></label>
-                        <select class="form-select" id="gender" name="gender">
+                        <select class="form-select" id="gender" name="gender" required>
                             <option value="">Select Gender</option>
-                            <option value="Male" {{ old('gender') == 'Male' ? 'selected' : '' }}>Male</option>
-                            <option value="Female" {{ old('gender') == 'Female' ? 'selected' : '' }}>Female</option>
-                            <option value="Other" {{ old('gender') == 'Other' ? 'selected' : '' }}>Other</option>
+                            <option value="male" {{ old('gender') == 'male' ? 'selected' : '' }}>Male</option>
+                            <option value="female" {{ old('gender') == 'female' ? 'selected' : '' }}>Female</option>
+                            <option value="other" {{ old('gender') == 'other' ? 'selected' : '' }}>Other</option>
                         </select>
                     </div>
                     <div class="col-md-4">
