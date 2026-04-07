@@ -112,6 +112,36 @@ unset($__errorArgs, $__bag); ?>
 
                         
                         <div class="mb-3">
+                            <label class="form-label"><strong>Employee ID</strong></label>
+                            <input 
+                                type="text" 
+                                name="employee_id" 
+                                class="form-control <?php $__errorArgs = ['employee_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?> is-invalid <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>" 
+                                value="<?php echo e(old('employee_id')); ?>" 
+                                placeholder="Employee ID"
+                                required
+                            >
+                            <?php $__errorArgs = ['employee_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                <div class="invalid-feedback"><?php echo e($message); ?></div>
+                            <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                        </div>
+
+                        
+                        <div class="mb-3">
                             <label class="form-label"><strong>Password</strong></label>
                             <input 
                                 type="password" 
@@ -190,6 +220,7 @@ unset($__errorArgs, $__bag); ?>
                                 <tr>
                                     <th class="border-0 fw-semibold">Email</th>
                                     <th class="border-0 fw-semibold">Name</th>
+                                    <th class="border-0 fw-semibold">Employee ID</th>
                                     <th class="border-0 fw-semibold">Role</th>
                                     <th class="border-0 fw-semibold text-center">Actions</th>
                                 </tr>
@@ -202,6 +233,9 @@ unset($__errorArgs, $__bag); ?>
                                         </td>
                                         <td>
                                             <div class="fw-semibold"><?php echo e($user->name ?? '-'); ?></div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold"><?php echo e($user->employee_id ?? '-'); ?></div>
                                         </td>
                                         <td>
                                             <span class="fw-semibold text-secondary"><?php echo e(ucfirst($user->role ?? 'N/A')); ?></span>
@@ -225,7 +259,7 @@ unset($__errorArgs, $__bag); ?>
                                     </tr>
                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
                                     <tr>
-                                        <td colspan="4" class="text-center py-4">
+                                        <td colspan="5" class="text-center py-4">
                                             <div class="text-muted">
                                                 <i class="bi bi-person-x fs-1 d-block mb-2"></i>
                                                 No staff accounts found.
@@ -251,9 +285,6 @@ unset($__errorArgs, $__bag); ?>
 </div>
 <?php $__env->stopSection(); ?>
 
-<?php $__env->startPush('scripts'); ?>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<?php $__env->stopPush(); ?>
 
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\jimmu\Herd\library\resources\views/staff/index.blade.php ENDPATH**/ ?>

@@ -24,10 +24,13 @@
             <input 
                 type="email" 
                 name="email" 
-                class="form-control" 
+                class="form-control @error('email') is-invalid @enderror" 
                 value="{{ old('email') }}" 
                 required
             >
+            @error('email')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
         </div>
 
         <!-- Name -->
@@ -36,10 +39,28 @@
             <input 
                 type="text" 
                 name="name" 
-                class="form-control" 
+                class="form-control @error('name') is-invalid @enderror" 
                 value="{{ old('name') }}" 
                 required
             >
+            @error('name')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
+        </div>
+
+        <!-- Employee ID -->
+        <div class="mb-3">
+            <label class="form-label">Employee ID <span class="text-danger">*</span></label>
+            <input 
+                type="text" 
+                name="employee_id" 
+                class="form-control @error('employee_id') is-invalid @enderror" 
+                value="{{ old('employee_id') }}" 
+                required
+            >
+            @error('employee_id')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
         </div>
 
         <!-- Password -->
@@ -48,19 +69,25 @@
             <input 
                 type="password" 
                 name="password" 
-                class="form-control" 
+                class="form-control @error('password') is-invalid @enderror" 
                 required
             >
+            @error('password')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
         </div>
 
         <!-- Role -->
         <div class="mb-3">
             <label class="form-label">Role <span class="text-danger">*</span></label>
-            <select name="role" class="form-control" required>
+            <select name="role" class="form-select @error('role') is-invalid @enderror" required>
                 
                 <option value="staff" {{ old('role') == 'staff' ? 'selected' : '' }}>Staff</option>
                 <option value="admin" {{ old('role') == 'admin' ? 'selected' : '' }}>Admin</option>
             </select>
+            @error('role')
+                <div class="invalid-feedback">{{ $message }}</div>
+            @enderror
         </div>
 
         <!-- Buttons -->

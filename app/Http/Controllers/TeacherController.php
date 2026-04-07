@@ -19,7 +19,9 @@ class TeacherController extends Controller
                   ->orWhere('email', 'like', "%{$search}%")
                   ->orWhere('gender', 'like', "%{$search}%")
                   ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhere('phone_number', 'like', "%{$search}%");
+                  ->orWhere('phone_number', 'like', "%{$search}%")
+                  ->orWhere('employee_id', 'like', "%{$search}%")
+                  ->orWhere('rank_position', 'like', "%{$search}%");
             });
         }
         $teachers = $query->with('borrows.book')->orderBy('name')->paginate(10);
@@ -35,12 +37,14 @@ class TeacherController extends Controller
     {
         $request->validate([
             'name'        => 'required|string|max:255',
+            'email'       => 'required|email|unique:teachers,email',
+            'employee_id' => 'required|string|max:255',
+            'rank_position' => 'required|string|max:255',
             'gender'      => 'required|string',
             'address'     => 'required|string',
             'phone_number'=> 'required|string|max:20',
-            'email'       => 'required|email|unique:teachers,email',
         ]);
-        $teacher = Teacher::create($request->only(['name','gender','address','phone_number','email']));
+        $teacher = Teacher::create($request->only(['name','email','employee_id','rank_position','gender','address','phone_number']));
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action'  => 'Added Teacher',
@@ -54,16 +58,24 @@ class TeacherController extends Controller
         return view('users.edit_teacher', compact('teacher'));
     }
 
+    public function show(Teacher $teacher)
+    {
+        $teacher->load('borrows.book');
+        return view('users.show_teacher', compact('teacher'));
+    }
+
     public function update(Request $request, Teacher $teacher)
     {
         $request->validate([
             'name'        => 'required|string|max:255',
+            'email'       => 'required|email|unique:teachers,email,' . $teacher->id,
+            'employee_id' => 'required|string|max:255',
+            'rank_position' => 'required|string|max:255',
             'gender'      => 'required|string',
             'address'     => 'required|string',
             'phone_number'=> 'required|string|max:20',
-            'email'       => 'required|email|unique:teachers,email,' . $teacher->id,
         ]);
-        $teacher->update($request->only(['name','gender','address','phone_number','email']));
+        $teacher->update($request->only(['name','email','employee_id','rank_position','gender','address','phone_number']));
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action'  => 'Updated Teacher',

@@ -1,6 +1,10 @@
-  @extends('layouts.app')
+@extends('layouts.app')
 
 @section('content')
+@php
+    $isAdmin = Auth::user() && Auth::user()->role === 'admin';
+    $canManageCopies = Auth::user() && (Auth::user()->role === 'admin' || Auth::user()->role === 'staff');
+@endphp
 <div class="row justify-content-center">
     <div class="col-lg-10">
         <div class="card">
@@ -8,7 +12,19 @@
                 <h4>Edit Book</h4>
             </div>
             <div class="card-body">
-                <form action="{{ route('books.update', $book) }}" method="POST">
+                @if($errors->any())
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <strong>Validation Error:</strong>
+                        <ul class="mb-0 mt-2">
+                            @foreach($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                @endif
+                
+                <form id="bookEditForm" action="{{ route('books.update', $book) }}" method="POST">
                     @csrf
                     @method('PUT')
                     
@@ -138,8 +154,8 @@
                                         <option value="">-- Select Type --</option>
                                         <option value="purchase" {{ old('acquisition_type', $book->acquisition_type) === 'purchase' ? 'selected' : '' }}>Purchase</option>
                                         <option value="donation" {{ old('acquisition_type', $book->acquisition_type) === 'donation' ? 'selected' : '' }}>Donation</option>
-                                        <option value="exchange" {{ old('acquisition_type', $book->acquisition_type) === 'exchange' ? 'selected' : '' }}>Exchange</option>
-                                        <option value="grant" {{ old('acquisition_type', $book->acquisition_type) === 'grant' ? 'selected' : '' }}>Grant</option>
+                                        {{-- <option value="exchange" {{ old('acquisition_type', $book->acquisition_type) === 'exchange' ? 'selected' : '' }}>Exchange</option> --}}
+                                        {{-- <option value="grant" {{ old('acquisition_type', $book->acquisition_type) === 'grant' ? 'selected' : '' }}>Grant</option> --}}
                                     </select>
                                     @error('acquisition_type')
                                         <div class="invalid-feedback">{{ $message }}</div>
@@ -186,9 +202,15 @@
                                     <div class="d-flex justify-content-between align-items-center">
                                         <h6 class="mb-0"><i class="bi bi-boxes me-2"></i>Physical Copies</h6>
                                         <div class="d-flex gap-2">
-                                            <button type="button" class="btn btn-sm btn-outline-danger" id="deleteSelectedCopiesBtn">
-                                                <i class="bi bi-trash me-1"></i>Delete
-                                            </button>
+                                            @if($canManageCopies)
+                                                <button type="button" class="btn btn-sm btn-outline-danger" id="deleteSelectedCopiesBtn">
+                                                    <i class="bi bi-trash me-1"></i>Delete
+                                                </button>
+                                            @else
+                                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Admin only">
+                                                    <i class="bi bi-lock me-1"></i>Delete
+                                                </button>
+                                            @endif
                                             <button type="button" class="btn btn-sm btn-outline-primary" id="addCopyBtn">
                                                 <i class="bi bi-plus me-1"></i>Add
                                             </button>
@@ -207,7 +229,9 @@
                                                     <th style="width: 25%;">Year</th>
                                                     <th style="width: 20%;">Status</th>
                                                     <th style="width: 20%;">Condition</th>
-                                                    <th style="width: 20%;" class="text-center">Action</th>
+                                                    @if($canManageCopies)
+                                                        <th style="width: 20%;" class="text-center">Action</th>
+                                                    @endif
                                                 </tr>
                                             </thead>
                                             <tbody id="copiesContainer">
@@ -225,15 +249,17 @@
                                                                 <option value="Old" {{ $copy->condition === 'Old' ? 'selected' : '' }}>Old</option>
                                                             </select>
                                                         </td>
-                                                        <td class="text-center">
-                                                            <button type="button" class="btn btn-sm btn-danger deleteCopyBtn" data-copy-id="{{ $copy->id }}" data-book-id="{{ $book->id }}" {{ $copy->status === 'borrowed' ? 'disabled' : '' }}>
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </td>
+                                                        @if($canManageCopies)
+                                                            <td class="text-center">
+                                                                <button type="button" class="btn btn-sm btn-danger deleteCopyBtn" data-copy-id="{{ $copy->id }}" data-book-id="{{ $book->id }}" {{ $copy->status === 'borrowed' ? 'disabled' : '' }}>
+                                                                    <i class="bi bi-trash"></i>
+                                                                </button>
+                                                            </td>
+                                                        @endif
                                                     </tr>
                                                 @empty
                                                     <tr>
-                                                        <td colspan="6" class="text-center text-muted py-3">No copies yet. Add copies using the button above.</td>
+                                                        <td colspan="{{ $canManageCopies ? 6 : 5 }}" class="text-center text-muted py-3">No copies yet. Add copies using the button above.</td>
                                                     </tr>
                                                 @endforelse
                                             </tbody>
@@ -254,6 +280,9 @@
                     {{-- Form Actions (Full Width) --}}
                     <div class="row mt-4">
                         <div class="col-12">
+                            <!-- Hidden field for copies count (required by controller) -->
+                            <input type="hidden" name="copies" value="{{ count($copies) }}">
+                            
                             <button type="submit" class="btn btn-primary">Update Book</button>
                             <a href="{{ route('books.catalog') }}" class="btn btn-secondary">Cancel</a>
                         </div>
@@ -332,6 +361,9 @@
 @push('scripts')
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        const IS_ADMIN = @json($isAdmin);
+        const CAN_MANAGE_COPIES = @json($canManageCopies);
+
         const categorySelect = document.getElementById('category');
         const otherInput = document.getElementById('other_category');
         const addCopyBtn = document.getElementById('addCopyBtn');
@@ -367,52 +399,54 @@
             }
         }
 
-        // Handle delete copy button clicks
-        copiesContainer.addEventListener('click', function(e) {
-            if (e.target.closest('.deleteCopyBtn')) {
-                const btn = e.target.closest('.deleteCopyBtn');
-                const copyId = btn.getAttribute('data-copy-id');
-                const bookIdAttr = btn.getAttribute('data-book-id');
-                const controlNumber = btn.closest('tr').querySelector('.ctrl-number').value;
+        // Handle delete copy button clicks (admin and staff)
+        if (CAN_MANAGE_COPIES) {
+            copiesContainer.addEventListener('click', function(e) {
+                if (e.target.closest('.deleteCopyBtn')) {
+                    const btn = e.target.closest('.deleteCopyBtn');
+                    const copyId = btn.getAttribute('data-copy-id');
+                    const bookIdAttr = btn.getAttribute('data-book-id');
+                    const controlNumber = btn.closest('tr').querySelector('.ctrl-number').value;
 
-                if (btn.disabled) return;
-                
-                const label = controlNumber ? controlNumber : '(unassigned)';
-                if (!confirm(`Delete copy ${label}?`)) {
-                    return;
+                    if (btn.disabled) return;
+                    
+                    const label = controlNumber ? controlNumber : '(unassigned)';
+                    if (!confirm(`Delete copy ${label}?`)) {
+                        return;
+                    }
+                    
+                    const formData = new FormData();
+                    formData.append('copy_id', copyId);
+                    
+                    fetch(`/books/${bookIdAttr}/delete-copy`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
+                            'Accept': 'application/json'
+                        }
+                    })
+                    .then(async response => {
+                        const ct = response.headers.get('content-type') || '';
+                        if (ct.includes('application/json')) return response.json();
+                        const text = await response.text();
+                        throw new Error(text.slice(0, 180));
+                    })
+                    .then(data => {
+                        if (data.success) {
+                            alert(data.message);
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || data.message || 'Failed to delete copy'));
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error:', err);
+                        alert('Error deleting copy: ' + err.message);
+                    });
                 }
-                
-                const formData = new FormData();
-                formData.append('copy_id', copyId);
-                
-                fetch(`/books/${bookIdAttr}/delete-copy`, {
-                    method: 'POST',
-                    body: formData,
-                    headers: {
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '',
-                        'Accept': 'application/json'
-                    }
-                })
-                .then(async response => {
-                    const ct = response.headers.get('content-type') || '';
-                    if (ct.includes('application/json')) return response.json();
-                    const text = await response.text();
-                    throw new Error(text.slice(0, 180));
-                })
-                .then(data => {
-                    if (data.success) {
-                        alert(data.message);
-                        location.reload();
-                    } else {
-                        alert('Error: ' + (data.error || data.message || 'Failed to delete copy'));
-                    }
-                })
-                .catch(err => {
-                    console.error('Error:', err);
-                    alert('Error deleting copy: ' + err.message);
-                });
-            }
-        });
+            });
+        }
 
         // Select all / none
         selectAllCopies?.addEventListener('change', function() {
@@ -422,9 +456,15 @@
             });
         });
 
-        // Bulk delete selected copies
+        // Bulk delete selected copies (admin and staff)
         deleteSelectedCopiesBtn?.addEventListener('click', function(e) {
             e.preventDefault();
+
+            if (!CAN_MANAGE_COPIES) {
+                alert('Only admins and staff can delete copies.');
+                return;
+            }
+
             const selected = Array.from(document.querySelectorAll('.copy-select:checked'))
                 .map(cb => cb.value);
 
@@ -483,11 +523,24 @@
             // Show acquisition year input
             const acquisitionYear = prompt('Enter acquisition year (optional):', new Date().getFullYear().toString());
             
+            // Show condition input (required)
+            const conditionPrompt = prompt('Enter condition:\n1 = Brand New\n2 = Old\n\nEnter 1 or 2:', '1');
+            if (conditionPrompt === null) return;
+            
+            const conditionMap = { '1': 'Brand New', '2': 'Old' };
+            const condition = conditionMap[conditionPrompt];
+            
+            if (!condition) {
+                alert('Invalid condition. Please select 1 (Brand New) or 2 (Old)');
+                return;
+            }
+            
             const formData = new FormData();
             formData.append('additional_copies', count);
             if (acquisitionYear) {
                 formData.append('acquisition_year', acquisitionYear);
             }
+            formData.append('condition', condition);
             
             fetch(`/books/${bookId}/add-copies`, {
                 method: 'POST',
@@ -535,7 +588,7 @@
         otherInput.addEventListener('input', syncOtherCategory);
 
         // Handle form submission - ensure custom category is properly selected
-        const formElement = document.querySelector('form');
+        const formElement = document.getElementById('bookEditForm');
         if (formElement) {
             formElement.addEventListener('submit', function(e) {
                 const selectedValue = categorySelect.value;
@@ -564,6 +617,13 @@
                 } else {
                     // If "other" is NOT selected, clear the custom value
                     otherInput.value = '';
+                }
+                
+                // Add loading state to submit button
+                const submitBtn = formElement.querySelector('button[type="submit"]');
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Updating...';
                 }
             });
         }

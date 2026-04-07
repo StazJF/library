@@ -253,7 +253,7 @@
                                     </select>
                                     </div>
                                     <div class="col-12 col-md-auto d-grid">
-                                        <button id="addBookBtn" type="button" class="btn btn-secondary btn-add-book">Add Book</button>
+                                        <button id="addBookBtn" type="button" class="btn btn-outline-dark btn-add-book">Add Book</button>
                                     </div>
                                 </div>
                                 <div id="stockWarning" class="text-danger small mt-2" style="display: none;">This book is out of stock.</div>

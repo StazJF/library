@@ -8,7 +8,7 @@
         <!-- Add Book Form -->
         <div class="col-md-8">
             <h4 class="mb-3">Add New Book</h4>
-                <form action="{{ route('books.store') }}" method="POST" class="p-4">
+                <form id="bookCreateForm" action="{{ route('books.store') }}" method="POST" class="p-4">
                     @csrf
 
                     {{-- Basic Information Section --}}
@@ -362,7 +362,7 @@
         const copiesInput = document.getElementById('copies');
         const isbnInput = document.getElementById('isbn');
         const pagesInput = document.getElementById('pages');
-        const form = document.querySelector('form');
+        const form = document.getElementById('bookCreateForm');
 
         // Validate that required elements exist
         if (!copiesContainer) {

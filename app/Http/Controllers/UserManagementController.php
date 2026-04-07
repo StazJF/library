@@ -32,6 +32,7 @@ class UserManagementController extends Controller
         $request->validate([
             'email' => 'required|email|unique:system_users,email',
             'name' => 'required|string|max:255',
+            'employee_id' => 'required|string|max:255|unique:system_users,employee_id',
             'role' => 'required|in:staff,admin',
             'password' => 'required|min:6',
         ]);
@@ -45,6 +46,7 @@ class UserManagementController extends Controller
         $user = SystemUser::create([
             'email' => $request->email,
             'name' => $request->name,
+            'employee_id' => $request->employee_id,
             'role'  => $request->role,
             'password' => bcrypt($request->password),
         ]);
@@ -55,7 +57,7 @@ class UserManagementController extends Controller
             'action' => 'create',
             'target_type' => 'staff',
             'target_id' => $user->id,
-            'details' => "Created staff/admin with name: {$user->name}, email: {$user->email} and role: {$user->role}",
+            'details' => "Created staff/admin with name: {$user->name}, email: {$user->email}, employee_id: {$user->employee_id} and role: {$user->role}",
         ]);
 
         return redirect()->route('staff.index')
@@ -74,17 +76,35 @@ class UserManagementController extends Controller
     {
         $user = SystemUser::findOrFail($id);
 
-        // Validate role + email
+        // Validate role + email + employee_id
         $request->validate([
             'email' => 'required|email|unique:system_users,email,' . $id . ',id',
+            'name' => 'required|string|max:255',
+            'employee_id' => 'required|string|max:255|unique:system_users,employee_id,' . $id . ',id',
             'role'  => 'required|in:staff,admin',
         ]);
+
+        if (!Schema::hasColumn('system_users', 'name')) {
+            return back()
+                ->withInput()
+                ->with('error', "Database schema mismatch: missing `system_users.name`. Run `php artisan migrate` to apply pending migrations.");
+        }
 
         $changes = [];
 
         if ($user->email !== $request->email) {
             $changes[] = "email from {$user->email} to {$request->email}";
             $user->email = $request->email;
+        }
+
+        if (($user->name ?? '') !== ($request->name ?? '')) {
+            $changes[] = "name from {$user->name} to {$request->name}";
+            $user->name = $request->name;
+        }
+
+        if ($user->employee_id !== $request->employee_id) {
+            $changes[] = "employee_id from {$user->employee_id} to {$request->employee_id}";
+            $user->employee_id = $request->employee_id;
         }
 
         if ($user->role !== $request->role) {
@@ -100,7 +120,7 @@ class UserManagementController extends Controller
             ]);
 
             if (!Hash::check($request->old_password, $user->password)) {
-                return back()->with('error', 'Old password is incorrect.');
+                return back()->withInput()->with('error', 'Old password is incorrect.');
             }
 
             $user->password = bcrypt($request->new_password);

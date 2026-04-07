@@ -85,17 +85,41 @@
         }
         .main-content {
             margin-left: 220px;
+            padding: 0;
+        }
+        .content-wrapper {
             padding: 2rem 1rem;
         }
-        .navbar {
-            background: #000 !important;
+        .topbar.navbar {
+            background: #fff !important;
+            border-bottom: 1px solid #e5e7eb;
+            z-index: 1030;
         }
-        .navbar .navbar-brand,
-        .navbar .nav-link {
-            color: #fff !important;
+        .topbar .dropdown-menu {
+            z-index: 1040;
         }
-        .navbar .nav-link:hover {
-            color: #ccc !important;
+        .topbar .nav-link {
+            color: #111 !important;
+        }
+        .topbar .nav-link:hover {
+            color: #111 !important;
+        }
+        .topbar-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            color: #111;
+            border: 1px solid #d1d5db;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.5px;
+        }
+        .role-badge {
+            background: transparent !important;
         }
         .btn-primary {
             background-color: #000 !important;
@@ -354,7 +378,53 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        @yield('content')
+        @auth
+            @php
+                $role = auth()->user()->role ?? null;
+                $roleLabel = $role ? ucfirst($role) : 'User';
+                $badgeClass = $role === 'admin'
+                    ? 'role-badge text-danger border border-danger'
+                    : 'role-badge text-primary border border-primary';
+                $displayName = auth()->user()->name ?: auth()->user()->email;
+                $initials = strtoupper(mb_substr((string) $displayName, 0, 2));
+            @endphp
+            <nav class="navbar topbar navbar-expand sticky-top">
+                <div class="container-fluid ">
+                    <div class="d-flex align-items-center gap-2">
+                    </div>
+
+                    <ul class="navbar-nav ms-auto align-items-center">
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2"
+                               href="#"
+                               role="button"
+                               data-bs-toggle="dropdown"
+                               aria-expanded="false">
+                                <span class="topbar-avatar" aria-hidden="true">{{ $initials }}</span>
+                                <span class="d-none d-md-inline text-truncate" style="max-width: 200px;">{{ $displayName }}</span>
+                                <span class="badge {{ $badgeClass }}">{{ $roleLabel }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                <li><h6 class="dropdown-header">{{ $displayName }}</h6></li>
+                                <li><span class="dropdown-item-text text-muted small">Role: <span class="badge {{ $badgeClass }}">{{ $roleLabel }}</span></span></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <a class="dropdown-item text-danger"
+                                       href="{{ route('logout') }}"
+                                       onclick="return confirm('Are you sure you want to log out?');">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </nav>
+        @endauth
+
+        <div class="content-wrapper">
+            @yield('content')
+        </div>
     </div>
 
     <!-- Toast Notifications -->

@@ -101,7 +101,9 @@
                             <small class="text-muted">Click the checkboxes of the copies you want to add.</small>
                         </div>
 
-                        <div id="cartList" class="border rounded p-3 text-muted small mb-3">No books added yet.</div>
+                        <div id="cartList" class="border rounded p-3 mb-3" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; max-height: 400px; overflow-y: auto; min-height: 100px; align-content: start;">
+                            <div class="text-muted small" style="grid-column: 1 / -1;">No books added yet.</div>
+                        </div>
                         <div id="hiddenInputs"></div>
 
                         <div class="d-flex gap-2 mb-4">
@@ -131,7 +133,7 @@
                 function renderCart() {
                     hiddenInputs.innerHTML = '';
                     if (cart.length === 0) {
-                        cartList.innerHTML = '<div class="text-muted small">No books added yet.</div>';
+                        cartList.innerHTML = '<div class="text-muted small" style="grid-column: 1 / -1;">No books added yet.</div>';
                         confirmBtn.textContent = 'Confirm (0)';
                         return;
                     }
@@ -140,45 +142,52 @@
                     cart.forEach(c => totalCount += c.controlNumbers.length);
                     confirmBtn.textContent = `Confirm (${totalCount})`;
                     
-                    const ul = document.createElement('ul'); 
-                    ul.className = 'list-unstyled mb-0';
+                    cartList.innerHTML = '';
                     
                     cart.forEach((c, idx) => {
-                        const li = document.createElement('li'); 
-                        li.className = 'd-flex justify-content-between align-items-center py-2 border-bottom';
-                        const ctrlsDisplay = c.controlNumbers.join(', ');
-                        li.innerHTML = `<div><strong>${c.title}</strong> <span class="badge bg-primary">${c.controlNumbers.length}x</span><div class="small text-muted">${c.author}</div><div class="small" style="color: #3b82f6; font-weight: 500;">Ctrl#: ${ctrlsDisplay}</div></div>`;
+                        const card = document.createElement('div');
+                        card.className = 'card border shadow-sm h-100';
+                        card.style.display = 'flex';
+                        card.style.flexDirection = 'column';
                         
-                        const btn = document.createElement('button'); 
-                        btn.className = 'btn btn-sm btn-outline-danger'; 
-                        btn.type = 'button'; 
-                        btn.textContent = 'Remove';
-                        btn.addEventListener('click', () => { 
-                            cart.splice(idx, 1); 
-                            renderCart(); 
+                        const ctrlsDisplay = c.controlNumbers.join(', ');
+                        card.innerHTML = `
+                            <div class="card-body d-flex flex-column p-3" style="flex: 1;">
+                                <h6 class="card-title mb-1 fw-bold" style="font-size: 0.95rem; line-height: 1.3;">${c.title}</h6>
+                                <small class="text-muted mb-2">${c.author}</small>
+                                <div class="mb-2">
+                                    <span class="badge bg-primary">${c.controlNumbers.length}x</span>
+                                </div>
+                                <small class="text-muted mb-3" style="font-size: 0.85rem;">
+                                    <strong>Ctrl#:</strong><br>${ctrlsDisplay}
+                                </small>
+                                <button type="button" class="btn btn-sm btn-outline-danger mt-auto" style="font-size: 0.85rem;">Remove</button>
+                            </div>
+                        `;
+                        
+                        const removeBtn = card.querySelector('button');
+                        removeBtn.addEventListener('click', () => {
+                            cart.splice(idx, 1);
+                            renderCart();
                         });
                         
-                        li.appendChild(btn);
-                        ul.appendChild(li);
+                        cartList.appendChild(card);
 
                         // Create hidden inputs for each control number
                         c.controlNumbers.forEach(ctrl => {
-                            const bookInput = document.createElement('input'); 
-                            bookInput.type = 'hidden'; 
-                            bookInput.name = 'book_ids[]'; 
-                            bookInput.value = c.id; 
+                            const bookInput = document.createElement('input');
+                            bookInput.type = 'hidden';
+                            bookInput.name = 'book_ids[]';
+                            bookInput.value = c.id;
                             hiddenInputs.appendChild(bookInput);
 
-                            const ctrlInput = document.createElement('input'); 
-                            ctrlInput.type = 'hidden'; 
-                            ctrlInput.name = 'copy_numbers[]'; 
-                            ctrlInput.value = ctrl; 
+                            const ctrlInput = document.createElement('input');
+                            ctrlInput.type = 'hidden';
+                            ctrlInput.name = 'copy_numbers[]';
+                            ctrlInput.value = ctrl;
                             hiddenInputs.appendChild(ctrlInput);
                         });
                     });
-                    
-                    cartList.innerHTML = ''; 
-                    cartList.appendChild(ul);
                 }
 
                 const userSelect = document.querySelector('select[name="user_id"]');

@@ -16,6 +16,7 @@ class SystemUser extends Authenticatable
         'name',
         'password',
         'role',
+        'employee_id',
     ];
     
     protected $dates = ['deleted_at'];

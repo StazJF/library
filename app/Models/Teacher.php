@@ -19,6 +19,8 @@ class Teacher extends Model
         'address',
         'phone_number',
         'email',
+        'employee_id',
+        'rank_position',
         'remark',
     ];
 

@@ -32,6 +32,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('teachers/import', [\App\Http\Controllers\TeacherController::class, 'importForm'])->name('teachers.import.form');
     Route::post('teachers/import', [\App\Http\Controllers\TeacherController::class, 'import'])->name('teachers.import');
     Route::get('teachers/{teacher}/edit', [\App\Http\Controllers\TeacherController::class, 'edit'])->name('teachers.edit');
+    Route::get('teachers/{teacher}', [\App\Http\Controllers\TeacherController::class, 'show'])->name('teachers.show');
     Route::get('teachers/{teacher}/borrow-history', [\App\Http\Controllers\TeacherController::class, 'showBorrowHistory'])->name('teachers.borrow-history');
     Route::put('teachers/{teacher}', [\App\Http\Controllers\TeacherController::class, 'update'])->name('teachers.update');
     Route::patch('teachers/{teacher}/remark', [\App\Http\Controllers\TeacherController::class, 'updateRemark'])->name('teachers.updateRemark');
@@ -63,6 +64,7 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('books', BookController::class);
     Route::get('books/api/next-control-base', [BookController::class, 'getNextControlBase'])->name('books.api.nextControlBase');
     Route::get('books/catalog', [BookController::class, 'catalog'])->name('books.catalog');
+    Route::get('books/{bookId}/preview-control-numbers', [BookController::class, 'previewControlNumbers'])->name('books.previewControlNumbers');
     Route::post('books/{bookId}/add-copies', [BookController::class, 'addCopies'])->name('books.addCopies');
     Route::post('books/{bookId}/delete-copy', [BookController::class, 'deleteCopy'])->name('books.deleteCopy');
     Route::post('books/{bookId}/delete-copies', [BookController::class, 'deleteCopies'])->name('books.deleteCopies');
@@ -101,7 +103,7 @@ Route::get('users/print', [UserController::class, 'printAll'])->name('users.prin
     });
 
     // Admin-only staff management routes
-    Route::prefix('staff')->group(function () {
+    Route::prefix('staff')->middleware('role:admin')->group(function () {
         Route::get('/', [UserManagementController::class, 'index'])->name('staff.index');
         Route::get('/create', [UserManagementController::class, 'create'])->name('staff.create');
         Route::post('/', [UserManagementController::class, 'store'])->name('staff.store');

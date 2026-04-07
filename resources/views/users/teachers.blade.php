@@ -56,6 +56,7 @@
                         <tr>
                             <th class="border-0 fw-semibold">Name</th>
                             <th class="border-0 fw-semibold">Email</th>
+                            <th class="border-0 fw-semibold d-none d-md-table-cell">Rank/Position</th>
                             <th class="border-0 fw-semibold d-none d-md-table-cell">Gender</th>
                             <th class="border-0 fw-semibold d-none d-lg-table-cell">Address</th>
                             <th class="border-0 fw-semibold d-none d-lg-table-cell">Phone</th>
@@ -85,7 +86,10 @@
                                     <small class="text-muted">{{ $teacher->email }}</small>
                                 </td>
                                 <td class="d-none d-md-table-cell">
-                                    <span class="badge bg-secondary">{{ ucfirst($teacher->gender) }}</span>
+                                    <small>{{ $teacher->rank_position }}</small>
+                                </td>
+                                <td class="d-none d-md-table-cell">
+                                    <span class="">{{ ucfirst($teacher->gender) }}</span>
                                 </td>
                                 <td class="d-none d-lg-table-cell">
                                     <small>{{ Str::limit($teacher->address, 30) }}</small>
@@ -101,7 +105,7 @@
 
                                 <td class="text-center">
                                     <div class="btn-group" role="group">
-                                        <a href="{{ route('teachers.borrow-history', $teacher->id) }}" class="btn btn-sm btn-outline-dark" title="View Borrow History">
+                                        <a href="{{ route('teachers.show', $teacher->id) }}" class="btn btn-sm btn-outline-dark" title="View Details">
                                             <i class="bi bi-eye"></i>
                                         </a>
                                         <a href="{{ route('teachers.edit', $teacher->id) }}" class="btn btn-sm btn-outline-dark" title="Edit">

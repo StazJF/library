@@ -54,6 +54,7 @@ class BookController extends Controller
         $request->validate([
             'additional_copies' => 'required|integer|min:1|max:1000',
             'acquisition_year' => 'nullable|integer|min:1900|max:' . $currentYear,
+            'condition' => 'required|string|in:Brand New,Good,Old',
             'copy_years' => 'nullable|array',
             'copy_years.*' => 'nullable|integer|min:1900|max:' . $currentYear,
         ]);
@@ -62,6 +63,7 @@ class BookController extends Controller
 
         $additionalCopies = $request->input('additional_copies');
         $defaultAcquisitionYear = $request->input('acquisition_year');
+        $condition = $request->input('condition');
         $submittedYears = $request->input('copy_years', []);
 
         // Determine base control number (prefer normalized BookCopy data; JSON fields may be stale)
@@ -144,7 +146,7 @@ class BookController extends Controller
                     'control_number' => $controlNumber,
                     'acquisition_year' => $acquisitionYear,
                     'status' => 'available',
-                    'condition' => null,
+                    'condition' => $condition,
                     'is_lost_damaged' => false,
                 ]);
             }
@@ -182,10 +184,110 @@ class BookController extends Controller
     }
 
     /**
+     * Preview the next control numbers that will be assigned when adding copies.
+     * This endpoint has no side effects (it does not create copies or update call_number).
+     */
+    public function previewControlNumbers(Request $request, $bookId)
+    {
+        $request->validate([
+            'additional_copies' => 'required|integer|min:1|max:1000',
+        ]);
+
+        $book = Book::findOrFail($bookId);
+        $additionalCopies = (int) $request->input('additional_copies');
+
+        // Determine base control number (prefer normalized BookCopy data; JSON fields may be stale)
+        $baseNumber = null;
+        $firstExistingCtrl = $book->copies()
+            ->whereNotNull('control_number')
+            ->orderBy('control_number')
+            ->value('control_number');
+        if ($firstExistingCtrl) {
+            $parts = explode('-', $firstExistingCtrl, 2);
+            if (count($parts) === 2 && trim($parts[0]) !== '') {
+                $baseNumber = trim($parts[0]);
+            }
+        }
+
+        if (!$baseNumber) {
+            $baseNumber = trim((string) ($book->call_number ?? ''));
+        }
+
+        // If still missing, compute what base would be allocated, but do not persist it here.
+        $willAllocateNewBase = false;
+        if ($baseNumber === '') {
+            $willAllocateNewBase = true;
+            $highestBase = 0;
+            $allBooks = Book::query()->select('call_number')->get();
+            foreach ($allBooks as $b) {
+                $cn = trim((string) ($b->call_number ?? ''));
+                if ($cn === '') {
+                    continue;
+                }
+                if (preg_match('/^(\d{1,9})$/', $cn, $m)) {
+                    $num = (int) $m[1];
+                    if ($num > $highestBase) {
+                        $highestBase = $num;
+                    }
+                }
+            }
+
+            $cacheBase = (int) Cache::get('ctrl_base', 0);
+            $nextBase = max($highestBase, $cacheBase) + 1;
+            $baseNumber = str_pad($nextBase, 3, '0', STR_PAD_LEFT);
+        }
+
+        // Find the highest suffix used so far for this base (within this book)
+        $maxSuffix = $book->copies()
+            ->where('control_number', 'like', $baseNumber . '-%')
+            ->get()
+            ->reduce(function ($max, $copy) use ($baseNumber) {
+                $parts = explode('-', (string) $copy->control_number, 2);
+                if (count($parts) === 2 && $parts[0] === $baseNumber) {
+                    $num = intval($parts[1]);
+                    return $num > $max ? $num : $max;
+                }
+                return $max;
+            }, 0);
+
+        $toCreate = [];
+        for ($i = 1; $i <= $additionalCopies; $i++) {
+            $toCreate[] = $baseNumber . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
+        }
+
+        $collisions = BookCopy::whereIn('control_number', $toCreate)->pluck('control_number')->toArray();
+        if (!empty($collisions)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Control number collision(s) detected. Please refresh and try again.',
+                'base_number' => $baseNumber,
+                'control_numbers' => $toCreate,
+                'collisions' => $collisions,
+            ], 409);
+        }
+
+        return response()->json([
+            'success' => true,
+            'base_number' => $baseNumber,
+            'will_allocate_new_base' => $willAllocateNewBase,
+            'next_suffix_start' => $maxSuffix + 1,
+            'control_numbers' => $toCreate,
+        ]);
+    }
+
+    /**
      * Delete a specific copy of a book
      */
     public function deleteCopy(Request $request, $bookId)
     {
+        // Allow admins and staff to delete copies
+        if (!Auth::check() || !in_array(Auth::user()->role, ['admin', 'staff'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Unauthorized. Only administrators and staff can delete copies.',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'copy_id' => 'nullable|integer',
             'control_number' => 'nullable|string',
@@ -278,6 +380,14 @@ class BookController extends Controller
      */
     public function deleteCopies(Request $request, $bookId)
     {
+        // Allow admins and staff to delete copies
+        if (!Auth::check() || !in_array(Auth::user()->role, ['admin', 'staff'])) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Unauthorized. Only administrators and staff can delete copies.',
+            ], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'copy_ids' => 'required|array|min:1',
             'copy_ids.*' => 'required|integer',
@@ -1192,6 +1302,11 @@ class BookController extends Controller
 
     public function destroy(Book $book)
     {
+        // Only admins can delete books
+        if (!Auth::check() || Auth::user()->role !== 'admin') {
+            abort(403, 'Unauthorized. Only administrators can delete books.');
+        }
+
         $title = $book->title;
         $author = $book->author;
 

@@ -1,6 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
+@php
+    $isAdmin = Auth::user() && Auth::user()->role === 'admin';
+@endphp
 <div class="container-fluid">
     {{-- Header Section --}}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
@@ -307,6 +310,10 @@
             </div>
 
             <div class="modal-body">
+                <div id="modalErrorAlert" class="alert alert-danger alert-dismissible fade show" role="alert" style="display: none;">
+                    <strong>Error:</strong> <span id="modalErrorMessage"></span>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
                 <div class="row g-3 h-100">
                     {{-- Left Section: Book Information --}}
                     <div class="col-lg-4">
@@ -459,14 +466,16 @@
                                     <div class="scrollable-table-container" id="copiesTableContainer" style="display: none;">
                                         <table class="table table-hover table-sm align-middle mb-0">
                                             <thead class="table-light">
-                                                <tr>
-                                                    <th style="width: 30%;">Control Number</th>
-                                                    <th style="width: 25%;">Condition</th>
-                                                    <th style="width: 20%;">Year</th>
-                                                    <th style="width: 15%;">Status</th>
-                                                    <th style="width: 10%; text-align: center;">Actions</th>
-                                                </tr>
-                                            </thead>
+                                         <tr>
+                                             <th style="width: 30%;">Control Number</th>
+                                             <th style="width: 25%;">Condition</th>
+                                             <th style="width: 20%;">Year</th>
+                                             <th style="width: 15%;">Status</th>
+                                            @if($isAdmin)
+                                                <th style="width: 10%; text-align: center;">Actions</th>
+                                            @endif
+                                         </tr>
+                                     </thead>
                                             <tbody id="copiesTableBody">
                                             </tbody>
                                         </table>
@@ -514,7 +523,7 @@
     </div>
 </div>
 <div class="modal fade" id="addCopiesModal" tabindex="-1" aria-labelledby="addCopiesModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header border-0">
                 <div>
@@ -525,59 +534,86 @@
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <form id="addCopiesForm" method="POST">
+            <form id="addCopiesForm" method="POST" action="#" onsubmit="return false;">
                 @csrf
                 <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="acquisitionYear" class="form-label">Acquisition Year</label>
-                        <input 
-                            type="number" 
-                            class="form-control" 
-                            id="acquisitionYear" 
-                            name="acquisition_year" 
-                            min="1900" 
-                            max="{{ date('Y') }}"
-                            placeholder="Enter acquisition year"
-                        >
-                        <small class="text-muted">Optional: Year when copies were acquired</small>
-                    </div>
-                    <div class="mb-3">
-                        <label for="copiesCount" class="form-label">Number of Copies to Add</label>
-                        <input 
-                            type="number" 
-                            class="form-control" 
-                            id="copiesCount" 
-                            name="additional_copies" 
-                            min="1" 
-                            max="1000"
-                            placeholder="Enter number of copies"
-                            required
-                        >
-                        <small class="text-muted">Must be a positive number between 1 and 1000</small>
-                    </div>
-                    <div class="card bg-light mb-3" id="copiesYearsCard" style="display: none;">
-                        <div class="card-header">
-                            <h6 class="mb-0">Acquisition Year for Each Copy</h6>
+                    <div class="row g-3">
+                        <div class="col-12 col-lg-5">
+                            <div class="mb-3">
+                                <label for="acquisitionYear" class="form-label">Acquisition Year</label>
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    id="acquisitionYear" 
+                                    name="acquisition_year" 
+                                    min="1900" 
+                                    max="{{ date('Y') }}"
+                                    placeholder="Enter acquisition year"
+                                >
+                                <small class="text-muted">Optional: Year when copies were acquired</small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="copyCondition" class="form-label">Condition</label>
+                                <select 
+                                    class="form-select" 
+                                    id="copyCondition" 
+                                    name="condition"
+                                    required
+                                >
+                                    <option value="" disabled selected>Select Condition</option>
+                                    <option value="Brand New">Brand New</option>
+                                    <option value="Old">Old</option>
+                                </select>
+                                <small class="text-muted">Select the condition of the copies</small>
+                            </div>
+
+                            <div class="mb-3 mb-lg-0">
+                                <label for="copiesCount" class="form-label">Number of Copies to Add</label>
+                                <input 
+                                    type="number" 
+                                    class="form-control" 
+                                    id="copiesCount" 
+                                    name="additional_copies" 
+                                    min="1" 
+                                    max="1000"
+                                    placeholder="Enter number of copies"
+                                    required
+                                >
+                                <small class="text-muted">Control numbers will appear on the right</small>
+                            </div>
                         </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover mb-0" id="copiesYearsTable">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Copy #</th>
-                                            <th>Acquisition Year</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="copiesYearsContainer">
-                                    </tbody>
-                                </table>
+
+                        <div class="col-12 col-lg-7">
+                            <div class="card bg-light mb-0" id="copiesYearsCard" style="display: none;">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Acquisition Year for Each Copy</h6>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-hover mb-0" id="copiesYearsTable">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>Control Number</th>
+                                                    <th>Acquisition Year</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="copiesYearsContainer">
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="text-muted small" id="copiesYearsHint">
+                                Enter “Number of Copies to Add” to generate control numbers.
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer border-0">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-success">
+                    <button type="submit" class="btn btn-success" id="addCopiesSubmitBtn">
                         <i class="bi bi-check me-1"></i>Add Copies
                     </button>
                 </div>
@@ -612,6 +648,12 @@
     #viewBookModal .modal-body {
         padding: 1.5rem;
         max-height: 75vh;
+        overflow-y: auto;
+    }
+
+    /* Add Copies Modal: make the right table usable in a tall modal */
+    #addCopiesModal #copiesYearsCard .table-responsive {
+        max-height: 55vh;
         overflow-y: auto;
     }
 
@@ -938,11 +980,25 @@
     }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
 <script>
+// Global authentication state
+const CURRENT_USER_ROLE = @json(Auth::user()?->role);
+const IS_ADMIN = @json(Auth::user() && Auth::user()->role === 'admin');
+const IS_STAFF = @json(Auth::user() && Auth::user()->role === 'staff');
+const CAN_MANAGE_COPIES = IS_ADMIN || IS_STAFF;
+const CAN_DELETE = IS_ADMIN;
+
+console.log('=== Global Auth State ===');
+console.log('Current User Role:', CURRENT_USER_ROLE);
+console.log('IS_ADMIN:', IS_ADMIN);
+console.log('IS_STAFF:', IS_STAFF);  
+console.log('CAN_MANAGE_COPIES:', CAN_MANAGE_COPIES);
+console.log('CAN_DELETE:', CAN_DELETE);
+console.log('========================');
+
 // Bulk delete functionality
 document.addEventListener('DOMContentLoaded', function() {
+
     const selectAllCheckbox = document.getElementById('selectAllCheckbox');
     const bookCheckboxes = document.querySelectorAll('.book-checkbox');
     const deleteSelectedBtnBottom = document.getElementById('deleteSelectedBtnBottom');
@@ -951,37 +1007,55 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function updateDeleteButton() {
         const checkedCount = document.querySelectorAll('.book-checkbox:checked').length;
-        selectedCountBottom.textContent = checkedCount;
-        deleteSelectedBtnBottom.style.display = checkedCount >= 2 ? 'inline-block' : 'none';
-        clearSelectBtn.style.display = checkedCount > 0 ? 'inline-block' : 'none';
+        if (selectedCountBottom) {
+            selectedCountBottom.textContent = checkedCount;
+        }
+        if (deleteSelectedBtnBottom) {
+            deleteSelectedBtnBottom.style.display = checkedCount >= 2 ? 'inline-block' : 'none';
+        }
+        if (clearSelectBtn) {
+            clearSelectBtn.style.display = checkedCount > 0 ? 'inline-block' : 'none';
+        }
     }
 
     // Initialize button state
     updateDeleteButton();
 
-    selectAllCheckbox.addEventListener('change', function() {
-        bookCheckboxes.forEach(checkbox => {
-            checkbox.checked = this.checked;
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            bookCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateDeleteButton();
         });
-        updateDeleteButton();
-    });
+    }
 
     bookCheckboxes.forEach(checkbox => {
         checkbox.addEventListener('change', function() {
-            selectAllCheckbox.checked = Array.from(bookCheckboxes).every(cb => cb.checked);
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = Array.from(bookCheckboxes).every(cb => cb.checked);
+            }
             updateDeleteButton();
         });
     });
 
-    clearSelectBtn.addEventListener('click', function() {
-        bookCheckboxes.forEach(checkbox => {
-            checkbox.checked = false;
+    if (clearSelectBtn) {
+        clearSelectBtn.addEventListener('click', function() {
+            bookCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            if (selectAllCheckbox) {
+                selectAllCheckbox.checked = false;
+            }
+            updateDeleteButton();
         });
-        selectAllCheckbox.checked = false;
-        updateDeleteButton();
-    });
+    }
 
-    function performDelete() {
+    const performDelete = CAN_DELETE ? function() {
+        if (!deleteSelectedBtnBottom) {
+            return;
+        }
+
         const selectedIds = Array.from(bookCheckboxes)
             .filter(cb => cb.checked)
             .map(cb => cb.dataset.bookId);
@@ -1041,15 +1115,19 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }, index * 800);
         });
+    } : null;
+
+    if (deleteSelectedBtnBottom && performDelete) {
+        deleteSelectedBtnBottom.addEventListener('click', performDelete);
     }
 
-    deleteSelectedBtnBottom.addEventListener('click', performDelete);
-
-    // Delete Copy Function
-    function deleteCopy(bookId, controlNumber) {
+    // Delete Copy Function (admin only)
+    const deleteCopy = CAN_DELETE ? function(bookId, controlNumber) {
         if (!confirm('Are you sure you want to delete this copy?')) {
             return;
         }
+
+        console.log('Deleting copy:', { bookId, controlNumber, userRole: CURRENT_USER_ROLE, canManage: CAN_MANAGE_COPIES });
 
         const formData = new FormData();
         formData.append('control_number', controlNumber);
@@ -1063,23 +1141,32 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         })
         .then(async response => {
+            console.log('Delete response status:', response.status);
             let data = {};
             try {
-                data = await response.json();
-            } catch (e) {}
+                const text = await response.text();
+                console.log('Delete response body:', text);
+                data = JSON.parse(text);
+            } catch (e) {
+                console.error('Error parsing response:', e);
+            }
+            
             if (response.ok && data.success) {
+                alert('Copy deleted successfully');
                 setTimeout(() => {
                     location.reload();
                 }, 300);
             } else {
-                alert((data && data.error) ? data.error : 'Error deleting copy. Please try again.');
+                const errorMsg = (data && data.error) ? data.error : `Error deleting copy (HTTP ${response.status}). Please try again.`;
+                console.error('Delete failed:', errorMsg, data);
+                alert(errorMsg);
             }
         })
         .catch(err => {
-            console.error('Error:', err);
+            console.error('Delete request error:', err);
             alert('Error deleting copy. Please check the console.');
         });
-    }
+    } : null;
 
     // Book Details Modal Handler
     const viewBookModal = document.getElementById('viewBookModal');
@@ -1087,6 +1174,10 @@ document.addEventListener('DOMContentLoaded', function() {
         viewBookModal.addEventListener('show.bs.modal', function(event) {
             const button = event.relatedTarget;
             const bookId = button.getAttribute('data-book-id');
+            
+            // Clear any previous error alerts
+            const errorAlert = document.getElementById('modalErrorAlert');
+            errorAlert.style.display = 'none';
             
             console.log('Opening book details modal for book ID:', bookId);
             
@@ -1098,50 +1189,108 @@ document.addEventListener('DOMContentLoaded', function() {
             fetch(`/books/${bookId}`, {
                 headers: {
                     'Accept': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
                 }
             })
             .then(response => {
                 console.log('Response status:', response.status);
+                console.log('Content-Type:', response.headers.get('content-type'));
+                
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    return response.text().then(text => {
+                        console.error('Error response body:', text);
+                        throw new Error(`HTTP ${response.status}: ${text.slice(0, 200)}`);
+                    });
                 }
-                return response.json();
+                
+                // Log the response before parsing
+                return response.text().then(text => {
+                    console.log('Raw response:', text.slice(0, 500));
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('Failed to parse JSON:', e);
+                        throw new Error('Response was not valid JSON: ' + text.slice(0, 100));
+                    }
+                });
             })
             .then(data => {
-                console.log('=== BOOK DATA RECEIVED ===');
-                console.log('Book data:', data);
-                console.log('Total Copies:', data.copies);
-                console.log('Available Copies:', data.available_copies);
-                console.log('Control Numbers:', data.control_numbers);
-                console.log('Copy Status:', data.copy_status);
-                console.log('Copy Years:', data.copy_years);
-                console.log('Copy Conditions:', data.copy_conditions);
-                console.log('Lost Control Numbers:', data.lost_control_numbers);
-                console.log('==================');
-                
-                // Populate basic info
-                document.getElementById('modalTitle').textContent = data.title || '-';
-                document.getElementById('modalAuthor').textContent = data.author || '-';
-                document.getElementById('modalISBN').textContent = data.isbn || '-';
-                document.getElementById('modalCategory').textContent = data.category || '-';
-                document.getElementById('modalPublisher').textContent = data.publisher || '-';
-                document.getElementById('modalPublishedYear').textContent = data.published_year || '-';
-                document.getElementById('modalPages').textContent = data.pages || '-';
-                document.getElementById('modalEdition').textContent = data.edition || '-';
-                document.getElementById('modalCondition').textContent = data.condition || '-';
-                document.getElementById('modalAcquisitionType').textContent = data.acquisition_type || '-';
-                document.getElementById('modalSourceOfFunds').textContent = data.source_of_funds || '-';
-                document.getElementById('modalCostPrice').textContent = data.cost_price ? '₱' + parseFloat(data.cost_price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
-                document.getElementById('modalPurchasePrice').textContent = data.purchase_price ? '₱' + parseFloat(data.purchase_price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
-                document.getElementById('modalCopies').textContent = `${data.available_copies || '0'} / ${data.copies || '0'}`;
+                try {
+                    console.log('=== BOOK DATA RECEIVED ===');
+                    console.log('Book data:', data);
+                    console.log('Total Copies:', data.copies);
+                    console.log('Available Copies:', data.available_copies);
+                    console.log('Control Numbers:', data.control_numbers);
+                    console.log('Copy Status:', data.copy_status);
+                    console.log('Copy Years:', data.copy_years);
+                    console.log('Copy Conditions:', data.copy_conditions);
+                    console.log('Lost Control Numbers:', data.lost_control_numbers);
+                    console.log('==================');
+                    
+                    // Helper function to safely set element content
+                    const setElementContent = (id, content) => {
+                        const el = document.getElementById(id);
+                        if (!el) {
+                            console.warn(`Element with id "${id}" not found in modal`);
+                            return;
+                        }
+                        el.textContent = content || '-';
+                    };
+                    
+                    // Populate basic info with null checks
+                    setElementContent('modalTitle', data.title);
+                    setElementContent('modalAuthor', data.author);
+                    setElementContent('modalISBN', data.isbn);
+                    setElementContent('modalCategory', data.category);
+                    setElementContent('modalPublisher', data.publisher);
+                    setElementContent('modalPublishedYear', data.published_year);
+                    setElementContent('modalPages', data.pages);
+                    setElementContent('modalEdition', data.edition);
+                    setElementContent('modalCondition', data.condition);
+                    setElementContent('modalAcquisitionType', data.acquisition_type);
+                    setElementContent('modalSourceOfFunds', data.source_of_funds);
+                    
+                    // Handle price fields with formatting
+                    const costPrice = document.getElementById('modalCostPrice');
+                    if (costPrice) {
+                        costPrice.textContent = data.cost_price ? '₱' + parseFloat(data.cost_price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
+                    }
+                    
+                    const purchasePrice = document.getElementById('modalPurchasePrice');
+                    if (purchasePrice) {
+                        purchasePrice.textContent = data.purchase_price ? '₱' + parseFloat(data.purchase_price).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : '-';
+                    }
+                    
+                    const copiesEl = document.getElementById('modalCopies');
+                    if (copiesEl) {
+                        copiesEl.textContent = `${data.available_copies || '0'} / ${data.copies || '0'}`;
+                    }
 
-                // Populate physical copies
-                const copiesTableBody = document.getElementById('copiesTableBody');
-                const copiesTableContainer = document.getElementById('copiesTableContainer');
-                const noCopiesMessage = document.getElementById('noCopiesMessage');
-                const copiesBadge = document.getElementById('copiesBadge');
-                copiesTableBody.innerHTML = '';
+                    // Populate physical copies - with proper null checks
+                    const copiesTableBody = document.getElementById('copiesTableBody');
+                    const copiesTableContainer = document.getElementById('copiesTableContainer');
+                    const noCopiesMessage = document.getElementById('noCopiesMessage');
+                    const copiesBadge = document.getElementById('copiesBadge');
+                    
+                    if (!copiesTableBody) {
+                        console.error('Cannot find copiesTableBody element in modal');
+                        throw new Error('Modal structure incomplete - copiesTableBody missing');
+                    }
+                    if (!copiesTableContainer) {
+                        console.error('Cannot find copiesTableContainer element in modal');
+                        throw new Error('Modal structure incomplete - copiesTableContainer missing');
+                    }
+                    if (!noCopiesMessage) {
+                        console.error('Cannot find noCopiesMessage element in modal');
+                        throw new Error('Modal structure incomplete - noCopiesMessage missing');
+                    }
+                    if (!copiesBadge) {
+                        console.error('Cannot find copiesBadge element in modal');
+                        throw new Error('Modal structure incomplete - copiesBadge missing');
+                    }
+                    
+                    copiesTableBody.innerHTML = '';
 
                 const controlNumbers = data.control_numbers || [];
                 const copyStatus = data.copy_status || [];
@@ -1180,7 +1329,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const badgeClass = status.toLowerCase() === 'available' ? 'bg-success' : 'bg-warning text-dark';
                             const acquisitionYear = (copyYears && copyYears[index]) ? copyYears[index] : (data.created_at ? new Date(data.created_at).getFullYear() : new Date().getFullYear());
                             const condition = (copyConditions && copyConditions[index]) ? copyConditions[index] : 'Brand New';
-                            const conditionBadgeClass = condition.toLowerCase() === 'brand new' ? 'bg-success' : (condition.toLowerCase() === 'good' ? 'bg-info' : 'bg-warning text-dark');
+                            const conditionBadgeClass = condition.toLowerCase() === 'brand new' ? 'bg-success' : (condition.toLowerCase() === 'good' ? 'bg-dark' : 'bg-warning text-dark');
                             
                             // Handle unassigned control numbers
                             let controlNumberDisplay = cn;
@@ -1191,6 +1340,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             }
                             
                             const row = document.createElement('tr');
+                            const actionCellHtml = CAN_DELETE
+                                ? `<td style="text-align:center;">
+                                        <button type="button" class="btn btn-sm btn-outline-danger deleteCopyBtn" data-book-id="${bookId}" data-control-number="${cn}" title="Delete copy">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                   </td>`
+                                : '';
                             row.innerHTML = `
                                 <td>
                                     ${controlNumberDisplay}
@@ -1204,11 +1360,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td>
                                     <span class="badge ${badgeClass}">${status}</span>
                                 </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-outline-danger deleteCopyBtn" data-book-id="${bookId}" data-control-number="${cn}" title="Delete copy">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
+                                ${actionCellHtml}
                             `;
                             copiesTableBody.appendChild(row);
                         });
@@ -1221,6 +1373,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         const currentYear = new Date().getFullYear();
                         for (let i = 0; i < totalCopies; i++) {
                             const row = document.createElement('tr');
+                            const actionCellHtml = CAN_DELETE
+                                ? `<td style="text-align:center;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Assign control number first">
+                                            <i class="bi bi-lock"></i>
+                                        </button>
+                                   </td>`
+                                : '';
                             row.innerHTML = `
                                 <td>
                                     <span class="badge bg-secondary">Unassigned</span>
@@ -1234,11 +1393,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td>
                                     <span class="badge bg-success">Available</span>
                                 </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Assign control number first">
-                                        <i class="bi bi-trash"></i>
-                                    </button>
-                                </td>
+                                ${actionCellHtml}
                             `;
                             copiesTableBody.appendChild(row);
                         }
@@ -1251,14 +1406,18 @@ document.addEventListener('DOMContentLoaded', function() {
                         noCopiesMessage.style.display = 'block';
                     }
                     
-                    // Attach delete event listeners to active deletion buttons
-                    copiesTableBody.querySelectorAll('.deleteCopyBtn:not(:disabled)').forEach(btn => {
-                        btn.addEventListener('click', function() {
-                            const bookId = this.getAttribute('data-book-id');
-                            const controlNumber = this.getAttribute('data-control-number');
-                            deleteCopy(bookId, controlNumber);
+                    if (CAN_DELETE) {
+                        // Attach delete event listeners to active deletion buttons
+                        copiesTableBody.querySelectorAll('.deleteCopyBtn:not(:disabled)').forEach(btn => {
+                            btn.addEventListener('click', function() {
+                                const bookId = this.getAttribute('data-book-id');
+                                const controlNumber = this.getAttribute('data-control-number');
+                                if (deleteCopy) {
+                                    deleteCopy(bookId, controlNumber);
+                                }
+                            });
                         });
-                    });
+                    }
                     
                     // Attach filter button listeners
                     const filterButtons = document.querySelectorAll('.condition-filter-btn');
@@ -1296,44 +1455,53 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // Handle Repaired Items Tab
-                const repairedItems = data.repaired_items || [];
-                const repairedTableBody = document.getElementById('repairedTableBody');
-                const repairedTableContainer = document.getElementById('repairedTableContainer');
-                const noRepairedMessage = document.getElementById('noRepairedMessage');
-                const repairedBadge = document.getElementById('repairedBadge');
-                
-                repairedTableBody.innerHTML = '';
-                repairedBadge.textContent = repairedItems.length;
-                
-                if (repairedItems.length > 0) {
-                    repairedItems.forEach((item) => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>
-                                <strong>${item.copy_number}</strong>
-                            </td>
-                            <td>
-                                <span>${item.original_report_date}</span>
-                            </td>
-                            <td>
-                                <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${item.repaired_date}</span>
-                            </td>
-                        `;
-                        repairedTableBody.appendChild(row);
-                    });
+                    const repairedItems = data.repaired_items || [];
+                    const repairedTableBody = document.getElementById('repairedTableBody');
+                    const repairedTableContainer = document.getElementById('repairedTableContainer');
+                    const noRepairedMessage = document.getElementById('noRepairedMessage');
+                    const repairedBadge = document.getElementById('repairedBadge');
                     
-                    repairedTableContainer.style.display = 'block';
-                    noRepairedMessage.style.display = 'none';
-                } else {
-                    repairedTableContainer.style.display = 'none';
-                    noRepairedMessage.style.display = 'block';
-                }
+                    if (!repairedTableBody || !repairedTableContainer || !noRepairedMessage || !repairedBadge) {
+                        console.warn('Some repaired items elements missing - skipping repaired items display');
+                    } else {
+                        repairedTableBody.innerHTML = '';
+                        repairedBadge.textContent = repairedItems.length;
+                    
+                        if (repairedItems.length > 0) {
+                            repairedItems.forEach((item) => {
+                                const row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>
+                                        <strong>${item.copy_number}</strong>
+                                    </td>
+                                    <td>
+                                        <span>${item.original_report_date}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>${item.repaired_date}</span>
+                                    </td>
+                                `;
+                                repairedTableBody.appendChild(row);
+                            });
+                            
+                            repairedTableContainer.style.display = 'block';
+                            noRepairedMessage.style.display = 'none';
+                        } else {
+                            repairedTableContainer.style.display = 'none';
+                            noRepairedMessage.style.display = 'block';
+                        }
+                    }
 
-                // Update edit button link
-                document.getElementById('editBookBtn').href = `/books/${bookId}/edit`;
+                    // Update edit button link
+                    const editBookBtn = document.getElementById('editBookBtn');
+                    if (editBookBtn) {
+                        editBookBtn.href = `/books/${bookId}/edit`;
+                    } else {
+                        console.warn('Edit button element not found in modal');
+                    }
 
-                // Store book data in modal for print functionality
-                viewBookModal.dataset.currentBookData = JSON.stringify({
+                    // Store book data in modal for print functionality
+                    viewBookModal.dataset.currentBookData = JSON.stringify({
                     title: data.title,
                     author: data.author,
                     isbn: data.isbn,
@@ -1353,21 +1521,52 @@ document.addEventListener('DOMContentLoaded', function() {
                     copy_status: data.copy_status || [],
                     copy_years: data.copy_years || []
                 });
+                } catch (error) {
+                    console.error('❌ Error populating modal:', error);
+                    console.error('Error details:', error);
+                    
+                    // Show error in alert
+                    const errorAlert = document.getElementById('modalErrorAlert');
+                    if (errorAlert) {
+                        const errorMessage = document.getElementById('modalErrorMessage');
+                        if (errorMessage) {
+                            errorMessage.textContent = error.message || 'Failed to populate book details. Please try again.';
+                        }
+                        errorAlert.style.display = 'block';
+                    }
+                    
+                    throw error;
+                }
             })
             .catch(err => {
                 console.error('❌ Error fetching book data:', err);
                 console.error('Full error object:', err);
                 
-                // Set all fields to show error status
-                document.getElementById('modalTitle').textContent = 'Error Loading Data';
-                document.getElementById('modalAuthor').textContent = `Error: ${err.message}`;
+                // Show error in alert - with null checks
+                const errorAlert = document.getElementById('modalErrorAlert');
+                const errorMessage = document.getElementById('modalErrorMessage');
+                
+                if (errorAlert && errorMessage) {
+                    errorMessage.textContent = err.message || 'Failed to load book data. Please try again.';
+                    errorAlert.style.display = 'block';
+                }
+                
+                // Set all fields to show error status - with safe element access
+                const titleEl = document.getElementById('modalTitle');
+                if (titleEl) titleEl.textContent = 'Error Loading Data';
+                
+                const authorEl = document.getElementById('modalAuthor');
+                if (authorEl) authorEl.textContent = `Error: ${err.message}`;
                 
                 // Show error in copies section
                 const copiesTableContainer = document.getElementById('copiesTableContainer');
                 const noCopiesMessage = document.getElementById('noCopiesMessage');
-                noCopiesMessage.innerHTML = `<i class="bi bi-exclamation-circle me-2"></i>Error loading copies: ${err.message}. Please check the browser console for details.`;
-                noCopiesMessage.style.display = 'block';
-                copiesTableContainer.style.display = 'none';
+                
+                if (copiesTableContainer) copiesTableContainer.style.display = 'none';
+                if (noCopiesMessage) {
+                    noCopiesMessage.innerHTML = `<i class="bi bi-exclamation-circle me-2"></i>Error loading copies: ${err.message}. Please check the browser console for details.`;
+                    noCopiesMessage.style.display = 'block';
+                }
             });
         });
     }
@@ -1378,13 +1577,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const acquisitionYearInput = document.getElementById('acquisitionYear');
         const copiesYearsCard = document.getElementById('copiesYearsCard');
         const copiesYearsContainer = document.getElementById('copiesYearsContainer');
+        const addCopiesSubmitBtn = document.getElementById('addCopiesSubmitBtn');
+
+        let currentAddCopiesBookId = null;
+        let controlNumbersPreviewTimer = null;
+        let latestPreviewControlNumbers = [];
 
         if (addCopiesModal) {
             addCopiesModal.addEventListener('show.bs.modal', function(event) {
                 const button = event.relatedTarget;
                 const bookId = button.getAttribute('data-book-id');
                 const bookTitle = button.getAttribute('data-book-title');
-            
+                currentAddCopiesBookId = bookId;
+             
                 // Set form action
                 const form = document.getElementById('addCopiesForm');
                 form.action = `/books/${bookId}/add-copies`;
@@ -1397,8 +1602,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const currentYear = new Date().getFullYear();
                 acquisitionYearInput.value = currentYear;
                 acquisitionYearInput.placeholder = currentYear;
+                document.getElementById('copyCondition').value = '';
                 copiesYearsCard.style.display = 'none';
                 copiesYearsContainer.innerHTML = '';
+                if (addCopiesSubmitBtn) {
+                    addCopiesSubmitBtn.disabled = false;
+                }
 
                 // Add listener for acquisition year changes AFTER modal is shown
                 acquisitionYearInput.removeEventListener('input', updateYearsOnAcquisitionChange);
@@ -1417,19 +1626,106 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             };
 
+            const hideControlNumbersPreview = () => {
+                latestPreviewControlNumbers = [];
+                copiesYearsContainer.querySelectorAll('.copy-control-number-cell').forEach(el => {
+                    el.textContent = '—';
+                });
+                if (addCopiesSubmitBtn) {
+                    addCopiesSubmitBtn.disabled = false;
+                }
+            };
+
+            const syncControlNumberCells = (numbers) => {
+                const cells = copiesYearsContainer.querySelectorAll('.copy-control-number-cell');
+                if (!cells || cells.length === 0) {
+                    return;
+                }
+                cells.forEach((cell, index) => {
+                    cell.textContent = (numbers && numbers[index]) ? numbers[index] : '—';
+                });
+            };
+
+            const renderControlNumbersPreview = (payload) => {
+                const numbers = payload?.control_numbers || [];
+                if (!numbers.length) {
+                    hideControlNumbersPreview();
+                    return;
+                }
+
+                latestPreviewControlNumbers = numbers;
+                syncControlNumberCells(numbers);
+
+                if (addCopiesSubmitBtn) {
+                    addCopiesSubmitBtn.disabled = false;
+                }
+            };
+
+            const updateControlNumbersPreview = (count) => {
+                if (!currentAddCopiesBookId || !count || count <= 0) {
+                    hideControlNumbersPreview();
+                    return;
+                }
+                copiesYearsContainer.querySelectorAll('.copy-control-number-cell').forEach(el => {
+                    el.textContent = 'Loading…';
+                });
+                if (addCopiesSubmitBtn) {
+                    addCopiesSubmitBtn.disabled = true;
+                }
+
+                fetch(`/books/${currentAddCopiesBookId}/preview-control-numbers?additional_copies=${encodeURIComponent(count)}`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+                    }
+                })
+                .then(async response => {
+                    const data = await response.json().catch(() => ({}));
+                    if (!response.ok) {
+                        const message = data?.message || `Error previewing control numbers (HTTP ${response.status})`;
+                        throw new Error(message);
+                    }
+                    return data;
+                })
+                .then(data => {
+                    renderControlNumbersPreview(data);
+                })
+                .catch(err => {
+                    console.error('Error previewing control numbers:', err);
+                    copiesYearsContainer.querySelectorAll('.copy-control-number-cell').forEach((el, idx) => {
+                        el.textContent = idx === 0 ? 'Preview error' : '—';
+                    });
+                    if (addCopiesSubmitBtn) {
+                        addCopiesSubmitBtn.disabled = true;
+                    }
+                });
+            };
+
             // Handle number of copies change
             copiesCountInput.addEventListener('input', function() {
                 const count = parseInt(this.value) || 0;
                 copiesYearsContainer.innerHTML = '';
+
+                // Debounced control number preview
+                if (controlNumbersPreviewTimer) {
+                    clearTimeout(controlNumbersPreviewTimer);
+                }
+                controlNumbersPreviewTimer = setTimeout(() => {
+                    updateControlNumbersPreview(count);
+                }, 200);
                 
                 if (count > 0 && count <= 1000) {
                     copiesYearsCard.style.display = 'block';
+                    const hint = document.getElementById('copiesYearsHint');
+                    if (hint) hint.style.display = 'none';
                     const baseYear = acquisitionYearInput.value && acquisitionYearInput.value.trim() !== '' ? acquisitionYearInput.value : new Date().getFullYear();
                     
                     for (let i = 0; i < count; i++) {
                         const row = document.createElement('tr');
+                        const ctrlValue = (latestPreviewControlNumbers && latestPreviewControlNumbers[i]) ? latestPreviewControlNumbers[i] : 'Loading…';
                         row.innerHTML = `
-                            <td>${i + 1}</td>
+                            <td><span class="copy-control-number-cell">${ctrlValue}</span></td>
                             <td><input type="number" name="copy_years[]" class="form-control form-control-sm copy-year-input" min="1900" max="{{ date('Y') }}" value="${baseYear}" required></td>
                         `;
                         copiesYearsContainer.appendChild(row);
@@ -1447,10 +1743,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 } else if (count > 1000) {
                     copiesYearsCard.style.display = 'none';
+                    const hint = document.getElementById('copiesYearsHint');
+                    if (hint) hint.style.display = 'block';
                     this.value = 1000;
                     this.dispatchEvent(new Event('input'));
                 } else {
                     copiesYearsCard.style.display = 'none';
+                    const hint = document.getElementById('copiesYearsHint');
+                    if (hint) hint.style.display = 'block';
                 }
             });
 
@@ -1478,7 +1778,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     acquisition_year: formData.get('acquisition_year')
                 });
                 
-                if (!action) {
+                if (!action || action.trim() === '' || action.trim() === '#') {
                     alert('Error: Form action not set. Please refresh and try again.');
                     console.error('Form action is not set!');
                     return;

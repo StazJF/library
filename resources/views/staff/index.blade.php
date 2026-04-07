@@ -82,6 +82,22 @@
                             @enderror
                         </div>
 
+                        {{-- Employee ID --}}
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Employee ID</strong></label>
+                            <input 
+                                type="text" 
+                                name="employee_id" 
+                                class="form-control @error('employee_id') is-invalid @enderror" 
+                                value="{{ old('employee_id') }}" 
+                                placeholder="Employee ID"
+                                required
+                            >
+                            @error('employee_id')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                        </div>
+
                         {{-- Password --}}
                         <div class="mb-3">
                             <label class="form-label"><strong>Password</strong></label>
@@ -134,6 +150,7 @@
                                 <tr>
                                     <th class="border-0 fw-semibold">Email</th>
                                     <th class="border-0 fw-semibold">Name</th>
+                                    <th class="border-0 fw-semibold">Employee ID</th>
                                     <th class="border-0 fw-semibold">Role</th>
                                     <th class="border-0 fw-semibold text-center">Actions</th>
                                 </tr>
@@ -146,6 +163,9 @@
                                         </td>
                                         <td>
                                             <div class="fw-semibold">{{ $user->name ?? '-' }}</div>
+                                        </td>
+                                        <td>
+                                            <div class="fw-semibold">{{ $user->employee_id ?? '-' }}</div>
                                         </td>
                                         <td>
                                             <span class="fw-semibold text-secondary">{{ ucfirst($user->role ?? 'N/A') }}</span>
@@ -169,7 +189,7 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="4" class="text-center py-4">
+                                        <td colspan="5" class="text-center py-4">
                                             <div class="text-muted">
                                                 <i class="bi bi-person-x fs-1 d-block mb-2"></i>
                                                 No staff accounts found.
@@ -194,7 +214,4 @@
 </div>
 @endsection
 
-@push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-@endpush
 

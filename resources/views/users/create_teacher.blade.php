@@ -30,8 +30,15 @@
                         <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
                         <input type="email" class="form-control" id="email" name="email" value="{{ old('email') }}" required>
                     </div>
-                </div>
-                <div class="row g-3 mb-3">
+                    
+                    <div class="col-md-6">
+                        <label for="employee_id" class="form-label">Employee ID <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="employee_id" name="employee_id" value="{{ old('employee_id') }}" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="rank_position" class="form-label">Rank/Position <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="rank_position" name="rank_position" value="{{ old('rank_position') }}" required>
+                    </div>
                     <div class="col-md-6">
                         <label for="gender" class="form-label">Gender <span class="text-danger">*</span></label>
                         <select class="form-select" id="gender" name="gender" required>
@@ -44,10 +51,10 @@
                         <label for="address" class="form-label">Address <span class="text-danger">*</span></label>
                         <input type="text" class="form-control" id="address" name="address" value="{{ old('address') }}" required>
                     </div>
-                </div>
-                <div class="mb-3">
-                    <label for="phone_number" class="form-label">Phone Number <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ old('phone_number') }}" required>
+                    <div class="col-md-6">
+                        <label for="phone_number" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="phone_number" name="phone_number" value="{{ old('phone_number') }}" required>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Teacher</button>
             </form>
