@@ -12,28 +12,27 @@
 </div>
 
 <div class="row">
-    
-    <div class="col-md-8">
+    <!-- User Details Section -->
+    <div class="col-md-3">
         <div class="card">
             <div class="card-header">
-                <h4>User Details: {{ $user->first_name }} {{ $user->last_name }}</h4>
+                <h4>User Details</h4>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Name:</strong> {{ $user->first_name }} {{ $user->last_name }}</p>
-                        <p><strong>Grade & Section:</strong> {{ $user->grade_section ?? '-' }}</p>
-                        <p><strong>LRN:</strong> {{ $user->lrn ?? '-' }}</p>
-                        <p><strong>Gender:</strong> {{ $user->gender ? ucfirst(strtolower($user->gender)) : '-' }}</p>
-                        <p><strong>Phone:</strong> {{ $user->phone_number ?? '-' }}</p>
-                        <p><strong>Address:</strong> {{ $user->address ?? '-' }}</p>
-                        <p><strong>Total Books Borrowed:</strong> {{ $user->borrows->count() }}</p>
-                    </div>
-                </div>
+                <p><strong>Name:</strong> {{ $user->first_name }} {{ $user->last_name }}</p>
+                <p><strong>Grade & Section:</strong> {{ $user->grade_section ?? '-' }}</p>
+                <p><strong>LRN:</strong> {{ $user->lrn ?? '-' }}</p>
+                <p><strong>Gender:</strong> {{ $user->gender ? ucfirst(strtolower($user->gender)) : '-' }}</p>
+                <p><strong>Phone:</strong> {{ $user->phone_number ?? '-' }}</p>
+                <p><strong>Address:</strong> {{ $user->address ?? '-' }}</p>
+                <p><strong>Total Books Borrowed:</strong> {{ $user->borrows->count() }}</p>
             </div>
         </div>
+    </div>
 
-        <div class="card mt-4">
+    <!-- Borrowing History Section -->
+    <div class="col-md-9">
+        <div class="card">
             <div class="card-header">
                 <h5>Borrowing History</h5>
             </div>
@@ -43,7 +42,7 @@
                     $today = \Carbon\Carbon::today();
                     // Penalty removed — using remarks instead
                 @endphp
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
                     <table class="table table-striped">
                         <thead>
                             <tr>

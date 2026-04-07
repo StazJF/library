@@ -10,28 +10,27 @@
 </div>
 
 <div class="row">
-    
-    <div class="col-md-8">
+    <!-- User Details Section -->
+    <div class="col-md-3">
         <div class="card">
             <div class="card-header">
-                <h4>User Details: <?php echo e($user->first_name); ?> <?php echo e($user->last_name); ?></h4>
+                <h4>User Details</h4>
             </div>
             <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>Name:</strong> <?php echo e($user->first_name); ?> <?php echo e($user->last_name); ?></p>
-                        <p><strong>Grade & Section:</strong> <?php echo e($user->grade_section ?? '-'); ?></p>
-                        <p><strong>LRN:</strong> <?php echo e($user->lrn ?? '-'); ?></p>
-                        <p><strong>Gender:</strong> <?php echo e($user->gender ? ucfirst(strtolower($user->gender)) : '-'); ?></p>
-                        <p><strong>Phone:</strong> <?php echo e($user->phone_number ?? '-'); ?></p>
-                        <p><strong>Address:</strong> <?php echo e($user->address ?? '-'); ?></p>
-                        <p><strong>Total Books Borrowed:</strong> <?php echo e($user->borrows->count()); ?></p>
-                    </div>
-                </div>
+                <p><strong>Name:</strong> <?php echo e($user->first_name); ?> <?php echo e($user->last_name); ?></p>
+                <p><strong>Grade & Section:</strong> <?php echo e($user->grade_section ?? '-'); ?></p>
+                <p><strong>LRN:</strong> <?php echo e($user->lrn ?? '-'); ?></p>
+                <p><strong>Gender:</strong> <?php echo e($user->gender ? ucfirst(strtolower($user->gender)) : '-'); ?></p>
+                <p><strong>Phone:</strong> <?php echo e($user->phone_number ?? '-'); ?></p>
+                <p><strong>Address:</strong> <?php echo e($user->address ?? '-'); ?></p>
+                <p><strong>Total Books Borrowed:</strong> <?php echo e($user->borrows->count()); ?></p>
             </div>
         </div>
+    </div>
 
-        <div class="card mt-4">
+    <!-- Borrowing History Section -->
+    <div class="col-md-9">
+        <div class="card">
             <div class="card-header">
                 <h5>Borrowing History</h5>
             </div>
@@ -41,7 +40,7 @@
                     $today = \Carbon\Carbon::today();
                     // Penalty removed — using remarks instead
                 ?>
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
                     <table class="table table-striped">
                         <thead>
                             <tr>

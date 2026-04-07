@@ -7,6 +7,7 @@ use App\Models\SystemUser;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class UserManagementController extends Controller
 {
@@ -34,6 +35,12 @@ class UserManagementController extends Controller
             'role' => 'required|in:staff,admin',
             'password' => 'required|min:6',
         ]);
+
+        if (!Schema::hasColumn('system_users', 'name')) {
+            return back()
+                ->withInput()
+                ->with('error', "Database schema mismatch: missing `system_users.name`. Run `php artisan migrate` to apply pending migrations.");
+        }
 
         $user = SystemUser::create([
             'email' => $request->email,
@@ -141,4 +148,3 @@ class UserManagementController extends Controller
                          ->with('success', 'Staff deleted successfully.');
     }
 }
-

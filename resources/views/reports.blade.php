@@ -49,7 +49,7 @@
     }
 </style>
 <div class="container py-4">
-    <h1 class="h3 mb-3">Reports & Analytics</h1>
+    <h1 class="h4 mb-5">Reports & Analytics</h1>
 
     <div class="row g-3 mb-4">
         <div class="col-md-3">
@@ -318,7 +318,7 @@
                     backgroundColor: @json($popularColorsSafe),
                     borderColor: @json(array_map(fn($c) => '#111111', $popularColorsSafe)),
                     borderRadius: 8,
-                    maxBarThickness: 48
+                    maxBarThickness: 48,
                 }]
             },
             options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }

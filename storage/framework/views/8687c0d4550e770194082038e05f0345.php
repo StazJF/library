@@ -28,6 +28,98 @@
     <?php endif; ?>
 
     <style>
+        /* Control Numbers Modal Styling */
+        .modal.fade .modal-dialog.modal-lg {
+            max-width: 80vw;
+        }
+
+        .modal-body-scrollable {
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        /* Improve scrollbar appearance */
+        .modal-body-scrollable::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .modal-body-scrollable::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .modal-body-scrollable::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+        .modal-body-scrollable::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Control number items layout */
+        .control-number-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            background-color: #f8f9fa;
+            transition: all 0.2s ease;
+        }
+
+        .control-number-item:hover {
+            background-color: #fff;
+            border-color: #0d6efd;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .control-number-item.selected {
+            background-color: #e7f1ff;
+            border-color: #0d6efd;
+        }
+
+        .control-number-item input[type="checkbox"] {
+            flex-shrink: 0;
+        }
+
+        .control-number-badge {
+            display: inline-block;
+            font-weight: 600;
+            margin-bottom: 0;
+        }
+
+        .control-number-select {
+            width: 100%;
+        }
+
+        /* Grid layout for control number items */
+        .control-numbers-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        @media (max-width: 1400px) {
+            .control-numbers-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 992px) {
+            .control-numbers-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 576px) {
+            .control-numbers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         @media print {
             .container-fluid > div:first-child,
             .mb-4,
@@ -590,31 +682,29 @@
         
         <?php if($quantity > 1): ?>
         <div class="modal fade" id="ctrlModal_<?php echo e($borrow->id); ?>" tabindex="-1" aria-labelledby="ctrlModalLabel_<?php echo e($borrow->id); ?>" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-lg">
                 <div class="modal-content">
-                    <div class="modal-header">
+                    <div class="modal-header bg-light">
                         <h5 class="modal-title" id="ctrlModalLabel_<?php echo e($borrow->id); ?>">
                             <i class="bi bi-list-check me-2"></i>Select Control Numbers
                         </h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
-                    <div class="modal-body">
-                        <?php $__currentLoopData = $similarBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $b): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                            <?php
-                                $ctrlNum = $b->copy_number ?? 'N/A';
-                            ?>
-                            <div class="card mb-3">
-                                <div class="card-body p-3">
-                                    <div class="d-flex align-items-start gap-2 mb-3">
-                                        <input class="form-check-input borrow-id-checkbox modal-checkbox mt-1" type="checkbox" 
+                    <div class="modal-body modal-body-scrollable p-3">
+                        <div class="control-numbers-grid">
+                            <?php $__currentLoopData = $similarBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $b): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                <?php
+                                    $ctrlNum = $b->copy_number ?? 'N/A';
+                                ?>
+                                <div class="control-number-item">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <input class="form-check-input borrow-id-checkbox modal-checkbox flex-shrink-0" type="checkbox" 
                                                name="borrow_ids[]" value="<?php echo e($b->id); ?>" id="borrow_<?php echo e($b->id); ?>" checked>
-                                        <div class="grow">
-                                            <label for="borrow_<?php echo e($b->id); ?>" class="form-check-label fw-semibold mb-2 d-block">
-                                                <span class="badge bg-primary">Ctrl#: <?php echo e($ctrlNum); ?></span>
-                                            </label>
-                                        </div>
+                                        <label for="borrow_<?php echo e($b->id); ?>" class="form-check-label fw-semibold control-number-badge mb-0">
+                                            <span class="badge bg-primary">Ctrl#: <?php echo e($ctrlNum); ?></span>
+                                        </label>
                                     </div>
-                                    <select class="form-select form-select-sm modal-remark-input" 
+                                    <select class="form-select form-select-sm modal-remark-input control-number-select" 
                                             data-borrow-id="<?php echo e($b->id); ?>">
                                         <option value="No Remarks">No Remarks</option>
                                         <option value="On Time">On Time</option>
@@ -623,10 +713,10 @@
                                         <option value="Damage">Damage</option>
                                     </select>
                                 </div>
-                            </div>
-                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                        </div>
                     </div>
-                    <div class="modal-footer">
+                    <div class="modal-footer bg-light">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                             <i class="bi bi-x-circle me-1"></i>Cancel
                         </button>
