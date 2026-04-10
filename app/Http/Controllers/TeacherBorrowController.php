@@ -7,9 +7,24 @@ use App\Models\Borrow;
 use App\Models\LostDamagedItem;
 use Illuminate\Support\Facades\DB;
 use App\Models\Teacher;
+use Carbon\Carbon;
 
 class TeacherBorrowController extends Controller
 {
+    private function syncBookCounts(Book $book): void
+    {
+        $total = $book->copies()->count();
+        $available = $book->copies()
+            ->where('status', 'available')
+            ->where('is_lost_damaged', false)
+            ->count();
+
+        $book->forceFill([
+            'copies' => $total,
+            'available_copies' => $available,
+            'status' => $available > 0 ? 'available' : 'borrowed',
+        ])->save();
+    }
 
     public function create()
     {
@@ -41,6 +56,9 @@ class TeacherBorrowController extends Controller
             return back()->with('error', 'Teacher not found.');
         }
 
+        $borrowDate = Carbon::parse($request->borrowed_at);
+        $returnDate = Carbon::parse($request->due_date);
+
         $success = 0;
         $errors = [];
 
@@ -65,21 +83,46 @@ class TeacherBorrowController extends Controller
                 continue;
             }
 
-            Borrow::create([
-                'user_id' => $request->user_id,
-                'book_id' => $bookId,
-                'borrowed_at' => $request->borrowed_at,
-                'due_date' => $request->due_date,
-                'returned_at' => null,
-                'role' => 'teacher',
-                'copy_number' => $book->control_numbers[0] ?? null,
-            ]);
+            try {
+                $borrow = DB::transaction(function () use ($teacher, $book, $borrowDate, $returnDate) {
+                    $bookCopy = $book->copies()
+                        ->where('status', 'available')
+                        ->where('is_lost_damaged', false)
+                        ->orderByRaw("CASE WHEN control_number IS NULL THEN 1 ELSE 0 END")
+                        ->orderBy('control_number')
+                        ->lockForUpdate()
+                        ->first();
 
-            $newCopies = max(0, ($book->copies ?? 1) - 1);
-            $book->update([
-                'copies' => $newCopies,
-                'status' => $newCopies < 1 ? 'borrowed' : $book->status,
-            ]);
+                    if (!$bookCopy || !$bookCopy->isAvailable()) {
+                        return null;
+                    }
+
+                    $borrow = Borrow::create([
+                        'user_id' => $teacher->id,
+                        'book_id' => $book->id,
+                        'book_copy_id' => $bookCopy->id,
+                        'borrowed_at' => $borrowDate,
+                        'due_date' => $returnDate,
+                        'returned_at' => null,
+                        'role' => 'teacher',
+                        'origin' => 'personal',
+                        'copy_number' => $bookCopy->control_number,
+                    ]);
+
+                    $bookCopy->markAsBorrowed();
+                    $this->syncBookCounts($book);
+
+                    return $borrow;
+                });
+
+                if (!$borrow) {
+                    $errors[] = "No available copy for '{$book->title}'.";
+                    continue;
+                }
+            } catch (\Exception $e) {
+                $errors[] = "Failed to borrow '{$book->title}': " . $e->getMessage();
+                continue;
+            }
 
             $success++;
         }

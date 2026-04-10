@@ -28,6 +28,7 @@ class Teacher extends Model
 
     public function borrows()
     {
-        return $this->hasMany(Borrow::class, 'user_id', 'id');
+        return $this->hasMany(Borrow::class, 'user_id', 'id')
+            ->where('role', 'teacher');
     }
 }

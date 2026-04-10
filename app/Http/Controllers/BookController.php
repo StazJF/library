@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Book;
 use App\Models\BookCopy;
+use App\Models\Borrow;
 use App\Models\DistributedBook;
 use App\Models\ActivityLog;
 use App\Models\LostDamagedItem;
@@ -13,12 +14,65 @@ use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
 class BookController extends Controller
 {
+    private function normalizeControlBase(?string $base): string
+    {
+        $base = trim((string) $base);
+        if ($base === '') {
+            return '';
+        }
+
+        // Preserve leading zeros and ensure at least 3 digits for numeric bases.
+        if (preg_match('/^\d+$/', $base)) {
+            $width = max(3, strlen($base));
+            $digits = ltrim($base, '0');
+            if ($digits === '') {
+                $digits = '0';
+            }
+            return str_pad($digits, $width, '0', STR_PAD_LEFT);
+        }
+
+        return $base;
+    }
+
+    private function rewriteControlNumberBase(string $controlNumber, string $newBase): ?string
+    {
+        $controlNumber = trim($controlNumber);
+        $newBase = trim($newBase);
+
+        if ($controlNumber === '' || $newBase === '') {
+            return null;
+        }
+
+        $parts = explode('-', $controlNumber, 2);
+        if (count($parts) !== 2) {
+            return null;
+        }
+
+        $suffix = trim($parts[1]);
+        if ($suffix === '') {
+            return null;
+        }
+
+        // Preserve leading zeros for numeric suffix and ensure at least 3 digits.
+        if (preg_match('/^\d+$/', $suffix)) {
+            $width = max(3, strlen($suffix));
+            $digits = ltrim($suffix, '0');
+            if ($digits === '') {
+                $digits = '0';
+            }
+            $suffix = str_pad($digits, $width, '0', STR_PAD_LEFT);
+        }
+
+        return $newBase . '-' . $suffix;
+    }
+
     /**
      * Show the import books form.
      */
@@ -1184,6 +1238,13 @@ class BookController extends Controller
     public function update(Request $request, Book $book)
     {
         $oldCopies = $book->copies()->count();
+
+        // Normalize numeric base to preserve leading zeros (e.g., "11" -> "011").
+        $normalizedCallNumber = $this->normalizeControlBase($request->input('call_number'));
+        $request->merge([
+            'call_number' => $normalizedCallNumber === '' ? null : $normalizedCallNumber,
+        ]);
+
         $request->validate([
             'title'    => 'required|string|max:255',
             'author'   => 'required|string|max:255',
@@ -1211,79 +1272,145 @@ class BookController extends Controller
 
         $categoryValue = $request->category === 'other' ? $request->other_category : $request->category;
 
-        // Calculate how many copies to add/remove
-        $newTotal = (int) $request->copies;
-        $addCopies = $newTotal - $oldCopies;
-        $newTotalCopies = $oldCopies + $addCopies;
+        $requestedTotalCopies = (int) $request->input('copies');
+        $addCopiesForLog = $requestedTotalCopies - $oldCopies;
 
-        // Generate new control numbers for newly added copies (if needed)
-        $newControlNumbersAdded = [];
-        if ($addCopies > 0) {
-            $base = trim($request->call_number ?: '');
-            
-            // Find the highest suffix used so far from BookCopy table
-            $maxSuffix = $book->copies()
-                ->whereRaw("control_number LIKE ?", [$base . '-%'])
-                ->get()
-                ->reduce(function ($max, $copy) use ($base) {
-                    $parts = explode('-', $copy->control_number);
-                    if (count($parts) === 2) {
-                        $num = intval($parts[1]);
-                        return $num > $max ? $num : $max;
-                    }
-                    return $max;
-                }, 0);
-
-            // Generate new control numbers
-            for ($i = 1; $i <= $addCopies; $i++) {
-                $newCtrlNum = $base . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
-                $newControlNumbersAdded[] = $newCtrlNum;
-            }
-        }
-
-        // Update the book record (without JSON fields)
-        $book->update([
-            'title' => ucwords(strtolower($request->title)),
-            'author' => ucwords(strtolower($request->author)),
-            'publisher' => ucwords(strtolower($request->publisher)),
-            'isbn' => $request->isbn,
-            'category' => $categoryValue,
-            'call_number' => $request->call_number,
-            'copies' => $newTotalCopies,
-            'published_year' => $request->published_year,
-            'pages' => $request->pages,
-            'edition' => $request->edition,
-            'condition' => $request->condition,
-            'acquisition_type' => $request->acquisition_type,
-            'purchase_price' => $request->purchase_price,
-            'cost_price' => $request->cost_price,
-            'source_of_funds' => $request->source_of_funds,
-        ]);
-
-        // Update conditions for existing copies if provided
-        if ($request->has('copy_condition') && is_array($request->copy_condition)) {
-            $copies = $book->copies()->get();
-            foreach ($copies as $index => $copy) {
-                if (isset($request->copy_condition[$index])) {
-                    $copy->update([
-                        'condition' => $request->copy_condition[$index]
-                    ]);
-                }
-            }
-        }
-
-        // Create BookCopy records for newly added copies
         try {
-            foreach ($newControlNumbersAdded as $newCtrlNum) {
-                BookCopy::create([
-                    'book_id' => $book->id,
-                    'control_number' => $newCtrlNum,
-                    'acquisition_year' => null,
-                    'status' => 'available',
+            DB::transaction(function () use ($request, $book, $categoryValue, $oldCopies) {
+                $oldBase = $this->normalizeControlBase($book->call_number);
+                $newBase = $this->normalizeControlBase($request->input('call_number'));
+
+                // Keep BookCopy.control_number base consistent with the book's call_number.
+                // This prevents UI/borrow modules from showing a different base than what's stored on the book.
+                if ($newBase !== '') {
+                    $copiesToRewrite = $book->copies()
+                        ->whereNotNull('control_number')
+                        ->lockForUpdate()
+                        ->get();
+
+                    $proposed = [];
+                    foreach ($copiesToRewrite as $copy) {
+                        $newCtrl = $this->rewriteControlNumberBase((string) $copy->control_number, $newBase);
+                        if ($newCtrl === null || $newCtrl === $copy->control_number) {
+                            continue;
+                        }
+                        $proposed[$copy->id] = $newCtrl;
+                    }
+
+                    // If everything is already consistent, skip rewrite work.
+                    if (empty($proposed)) {
+                        // no-op
+                    } else {
+                        // Ensure we don't create duplicates inside the same book.
+                        $values = array_values($proposed);
+                        if (count($values) !== count(array_unique($values))) {
+                            throw \Illuminate\Validation\ValidationException::withMessages([
+                                'call_number' => 'Cannot change control number base: it would create duplicate copy control numbers for this book.',
+                            ]);
+                        }
+
+                        // Ensure we don't collide with other books (global unique constraint on book_copies.control_number).
+                        $collisions = BookCopy::where('book_id', '!=', $book->id)
+                            ->whereIn('control_number', $values)
+                            ->pluck('control_number')
+                            ->toArray();
+                        if (!empty($collisions)) {
+                            throw \Illuminate\Validation\ValidationException::withMessages([
+                                'call_number' => 'Cannot change control number base: control number(s) already exist: ' . implode(', ', $collisions),
+                            ]);
+                        }
+
+                        foreach ($copiesToRewrite as $copy) {
+                            if (!isset($proposed[$copy->id])) {
+                                continue;
+                            }
+                            $newCtrl = $proposed[$copy->id];
+                            $copy->update(['control_number' => $newCtrl]);
+
+                            // Keep borrows consistent (return flow may fallback to matching by copy_number).
+                            Borrow::where('book_copy_id', $copy->id)->update(['copy_number' => $newCtrl]);
+                        }
+                    }
+                }
+
+                // Calculate how many copies to add/remove
+                $newTotal = (int) $request->input('copies');
+                $addCopies = $newTotal - $oldCopies;
+                $newTotalCopies = $oldCopies + $addCopies;
+
+                // Update the book record (without JSON fields)
+                $book->update([
+                    'title' => ucwords(strtolower($request->title)),
+                    'author' => ucwords(strtolower($request->author)),
+                    'publisher' => ucwords(strtolower($request->publisher)),
+                    'isbn' => $request->isbn,
+                    'category' => $categoryValue,
+                    'call_number' => $request->input('call_number'),
+                    'copies' => $newTotalCopies,
+                    'published_year' => $request->published_year,
+                    'pages' => $request->pages,
+                    'edition' => $request->edition,
                     'condition' => $request->condition,
-                    'is_lost_damaged' => false,
+                    'acquisition_type' => $request->acquisition_type,
+                    'purchase_price' => $request->purchase_price,
+                    'cost_price' => $request->cost_price,
+                    'source_of_funds' => $request->source_of_funds,
                 ]);
-            }
+
+                // Update conditions for existing copies if provided
+                if ($request->has('copy_condition') && is_array($request->copy_condition)) {
+                    $copies = $book->copies()->get();
+                    foreach ($copies as $index => $copy) {
+                        if (isset($request->copy_condition[$index])) {
+                            $copy->update([
+                                'condition' => $request->copy_condition[$index]
+                            ]);
+                        }
+                    }
+                }
+
+                // Generate + create BookCopy records for newly added copies (if needed)
+                if ($addCopies > 0) {
+                    $base = trim((string) ($request->input('call_number') ?? ''));
+                    if ($base === '') {
+                        // Fallback: if base is missing, try using any existing base from copies.
+                        $firstExisting = $book->copies()
+                            ->whereNotNull('control_number')
+                            ->orderBy('control_number')
+                            ->value('control_number');
+                        if ($firstExisting) {
+                            $parts = explode('-', (string) $firstExisting, 2);
+                            $base = trim((string) ($parts[0] ?? ''));
+                        }
+                    }
+
+                    $maxSuffix = $book->copies()
+                        ->whereRaw("control_number LIKE ?", [$base . '-%'])
+                        ->get()
+                        ->reduce(function ($max, $copy) use ($base) {
+                            $parts = explode('-', (string) $copy->control_number, 2);
+                            if (count($parts) === 2 && $parts[0] === $base) {
+                                $num = intval($parts[1]);
+                                return $num > $max ? $num : $max;
+                            }
+                            return $max;
+                        }, 0);
+
+                    for ($i = 1; $i <= $addCopies; $i++) {
+                        $newCtrlNum = $base . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
+                        BookCopy::create([
+                            'book_id' => $book->id,
+                            'control_number' => $newCtrlNum,
+                            'acquisition_year' => null,
+                            'status' => 'available',
+                            'condition' => $request->condition,
+                            'is_lost_damaged' => false,
+                        ]);
+                    }
+                }
+            });
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             Log::error('Error adding book copies during update', ['error' => $e->getMessage()]);
             return back()
@@ -1294,7 +1421,7 @@ class BookController extends Controller
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action'  => 'Updated Book',
-            'details' => "Book '{$book->title}' updated." . ($addCopies > 0 ? " Added {$addCopies} copy/copies." : ''),
+            'details' => "Book '{$book->title}' updated." . ($addCopiesForLog > 0 ? " Added {$addCopiesForLog} copy/copies." : ''),
         ]);
 
         return redirect()->route('books.catalog')->with('success', 'Book updated successfully.');

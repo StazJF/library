@@ -4,11 +4,44 @@ namespace App\Http\Controllers;
 
 use App\Models\Teacher;
 use App\Models\ActivityLog;
+use App\Models\BookCopy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TeacherController extends Controller
 {
+    private function hydrateMissingBookCopy($borrows): void
+    {
+        foreach ($borrows as $borrow) {
+            if ($borrow->bookCopy) {
+                continue;
+            }
+
+            $copyNumber = $borrow->copy_number ? trim((string) $borrow->copy_number) : null;
+            if (!$copyNumber) {
+                continue;
+            }
+
+            $copy = BookCopy::where('book_id', $borrow->book_id)
+                ->where('control_number', $copyNumber)
+                ->first();
+
+            if (!$copy && preg_match('/^\d{3}$/', $copyNumber) === 1) {
+                $candidates = BookCopy::where('book_id', $borrow->book_id)
+                    ->where('control_number', 'like', $copyNumber . '-%')
+                    ->limit(2)
+                    ->get();
+                if ($candidates->count() === 1) {
+                    $copy = $candidates->first();
+                }
+            }
+
+            if ($copy) {
+                $borrow->setRelation('bookCopy', $copy);
+            }
+        }
+    }
+
     public function index(Request $request)
     {
         $query = Teacher::whereNull('deleted_at');
@@ -60,8 +93,101 @@ class TeacherController extends Controller
 
     public function show(Teacher $teacher)
     {
-        $teacher->load('borrows.book');
-        return view('users.show_teacher', compact('teacher'));
+        $origin = request()->query('origin'); // personal|distribution|null
+        $status = request()->query('status'); // lost|damaged|repaired|found|issues|null
+
+        $origin = in_array($origin, ['personal', 'distribution'], true) ? $origin : null;
+        $status = in_array($status, ['lost', 'damaged', 'repaired', 'found', 'issues'], true) ? $status : null;
+
+        $query = $teacher->borrows()
+            ->with([
+                'book',
+                'bookCopy',
+                'lostDamagedItem' => function($q) {
+                    $q->with('histories');
+                },
+            ])
+            ->latest('borrowed_at');
+
+        if ($origin) {
+            $query->where('origin', $origin);
+        }
+
+        if ($status === 'issues') {
+            $query->where(function ($q) {
+                $q->whereHas('lostDamagedItem')
+                    ->orWhereIn('remark', ['Lost', 'Damage']);
+            });
+        } elseif ($status === 'lost') {
+            $query->where(function ($q) {
+                $q->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'lost')->where('status', 'active');
+                })->orWhere('remark', 'Lost');
+            });
+        } elseif ($status === 'damaged') {
+            $query->where(function ($q) {
+                $q->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'damaged')->where('status', 'active');
+                })->orWhere('remark', 'Damage');
+            });
+        } elseif ($status === 'repaired') {
+            $query->whereHas('lostDamagedItem', function ($inner) {
+                $inner->where('type', 'damaged')
+                    ->whereIn('status', ['repaired', 'returned']);
+            });
+        } elseif ($status === 'found') {
+            $query->whereHas('lostDamagedItem', function ($inner) {
+                $inner->where('type', 'lost')->where('status', 'returned');
+            });
+        }
+
+        $borrows = $query->get();
+        $this->hydrateMissingBookCopy($borrows);
+        $teacher->setRelation('borrows', $borrows);
+
+        // Counts (for filter UI badges) based on all borrows
+        $allBorrows = $teacher->borrows()
+            ->with(['lostDamagedItem' => function($q) {
+                $q->with('histories');
+            }])
+            ->get();
+        $this->hydrateMissingBookCopy($allBorrows);
+
+        $statusCounts = [
+            'lost' => 0,
+            'damaged' => 0,
+            'repaired' => 0,
+            'found' => 0,
+            'issues' => 0,
+        ];
+        foreach ($allBorrows as $b) {
+            $lossType = $b->getLossType();
+            if (!$lossType) {
+                if (($b->remark ?? '') === 'Lost') {
+                    $lossType = 'lost';
+                } elseif (($b->remark ?? '') === 'Damage') {
+                    $lossType = 'damaged';
+                }
+            }
+
+            if ($lossType === 'lost') {
+                $statusCounts['lost']++;
+            } elseif ($lossType === 'damaged') {
+                $statusCounts['damaged']++;
+            } elseif ($lossType === 'repaired') {
+                $statusCounts['repaired']++;
+            } elseif ($lossType === 'found') {
+                $statusCounts['found']++;
+            }
+        }
+        $statusCounts['issues'] = $statusCounts['lost'] + $statusCounts['damaged'] + $statusCounts['repaired'] + $statusCounts['found'];
+
+        $filterState = [
+            'origin' => $origin ?? 'all',
+            'status' => $status ?? 'all',
+        ];
+
+        return view('users.show_teacher', compact('teacher', 'filterState', 'statusCounts'));
     }
 
     public function update(Request $request, Teacher $teacher)
@@ -109,55 +235,111 @@ class TeacherController extends Controller
 
     public function showBorrowHistory(Teacher $teacher, Request $request)
     {
-        $filter = $request->query('filter', 'all');
+        // Back-compat: old UI used `filter=all|personal|distribution|damaged`
+        $legacyFilter = $request->query('filter', 'all');
+
+        $origin = $request->query('origin'); // personal|distribution|null
+        $status = $request->query('status'); // lost|damaged|repaired|found|issues|null
+
+        if (!$origin && in_array($legacyFilter, ['personal', 'distribution'], true)) {
+            $origin = $legacyFilter;
+        }
+        if (!$status && $legacyFilter === 'damaged') {
+            $status = 'issues';
+        }
+
+        $origin = in_array($origin, ['personal', 'distribution'], true) ? $origin : null;
+        $status = in_array($status, ['lost', 'damaged', 'repaired', 'found', 'issues'], true) ? $status : null;
         
-        $query = $teacher->borrows()->with(['book', 'lostDamagedItem' => function($q) {
-            // Only load LostDamagedItem if it belongs to this teacher
-            $q->where('role', 'teacher')->with('histories');
-        }])->latest('borrowed_at');
+        $query = $teacher->borrows()
+            ->with([
+                'book',
+                'bookCopy',
+                'lostDamagedItem' => function($q) {
+                    $q->with('histories');
+                },
+            ])
+            ->latest('borrowed_at');
         
-        if ($filter === 'personal') {
-            $query->where('origin', 'personal');
-        } elseif ($filter === 'distribution') {
-            $query->where('origin', 'distribution');
-        } elseif ($filter === 'damaged') {
-            // Only show items that have been marked as found or repaired, and belong to this teacher
-            $query->whereHas('lostDamagedItem', function($q) use ($teacher) {
-                $q->where('user_id', $teacher->id)
-                  ->where('role', 'teacher')
-                  ->where(function($inner) {
-                      $inner->where('status', 'found')
-                            ->orWhere('status', 'repaired');
-                  });
+        if (in_array($origin, ['personal', 'distribution'], true)) {
+            $query->where('origin', $origin);
+        }
+
+        if ($status === 'issues') {
+            $query->where(function ($q) {
+                $q->whereHas('lostDamagedItem')
+                    ->orWhereIn('remark', ['Lost', 'Damage']);
+            });
+        } elseif ($status === 'lost') {
+            $query->where(function ($q) {
+                $q->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'lost')->where('status', 'active');
+                })->orWhere('remark', 'Lost');
+            });
+        } elseif ($status === 'damaged') {
+            $query->where(function ($q) {
+                $q->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'damaged')->where('status', 'active');
+                })->orWhere('remark', 'Damage');
+            });
+        } elseif ($status === 'repaired') {
+            $query->whereHas('lostDamagedItem', function ($inner) {
+                $inner->where('type', 'damaged')
+                    ->whereIn('status', ['repaired', 'returned']);
+            });
+        } elseif ($status === 'found') {
+            $query->whereHas('lostDamagedItem', function ($inner) {
+                $inner->where('type', 'lost')->where('status', 'returned');
             });
         }
         
         $borrows = $query->get();
+        $this->hydrateMissingBookCopy($borrows);
         
-        // Calculate counts for damaged items - only count those that have been found/repaired and belong to this teacher
-        $allBorrows = $teacher->borrows()->with('lostDamagedItem')->get();
-        $damagedCounts = [
-            'lost' => $allBorrows->filter(function($b) use ($teacher) {
-                $ldi = $b->lostDamagedItem;
-                return $ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher' &&
-                       strtolower($ldi->type) === 'lost' && strtolower($ldi->status) === 'found';
-            })->count(),
-            'damaged' => $allBorrows->filter(function($b) use ($teacher) {
-                $ldi = $b->lostDamagedItem;
-                return $ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher' &&
-                       strtolower($ldi->type) === 'damaged' && 
-                       (!$ldi->status || strtolower($ldi->status) !== 'repaired');
-            })->count(),
-            'repaired' => $allBorrows->filter(function($b) use ($teacher) {
-                $ldi = $b->lostDamagedItem;
-                return $ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher' &&
-                       strtolower($ldi->status) === 'repaired';
-            })->count(),
+        // Counts for status filter badges
+        $allBorrows = $teacher->borrows()
+            ->with(['lostDamagedItem' => function($q) {
+                $q->with('histories');
+            }])
+            ->get();
+        $this->hydrateMissingBookCopy($allBorrows);
+
+        $statusCounts = [
+            'lost' => 0,
+            'damaged' => 0,
+            'repaired' => 0,
+            'found' => 0,
+            'issues' => 0,
+        ];
+
+        foreach ($allBorrows as $b) {
+            $lossType = $b->getLossType();
+            if (!$lossType) {
+                if (($b->remark ?? '') === 'Lost') {
+                    $lossType = 'lost';
+                } elseif (($b->remark ?? '') === 'Damage') {
+                    $lossType = 'damaged';
+                }
+            }
+
+            if ($lossType === 'lost') {
+                $statusCounts['lost']++;
+            } elseif ($lossType === 'damaged') {
+                $statusCounts['damaged']++;
+            } elseif ($lossType === 'repaired') {
+                $statusCounts['repaired']++;
+            } elseif ($lossType === 'found') {
+                $statusCounts['found']++;
+            }
+        }
+        $statusCounts['issues'] = $statusCounts['lost'] + $statusCounts['damaged'] + $statusCounts['repaired'] + $statusCounts['found'];
+        
+        $filterState = [
+            'origin' => $origin ?? 'all',
+            'status' => $status ?? 'all',
         ];
         
-        $damagedCounts['total'] = array_sum($damagedCounts);
-        
-        return view('users.teacher-borrow-history', compact('teacher', 'borrows', 'filter', 'damagedCounts'));
+        return view('users.teacher-borrow-history', compact('teacher', 'borrows', 'legacyFilter', 'filterState', 'statusCounts'));
     }
 
     public function destroy(Teacher $teacher)
@@ -256,4 +438,3 @@ class TeacherController extends Controller
         return redirect()->route('teachers.index');
     }
 }
-

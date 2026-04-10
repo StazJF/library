@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Book;
 use App\Models\User;
 use App\Models\Borrow;
+use App\Models\LostDamagedItem;
 
 class DashboardController extends Controller
 {
@@ -257,7 +258,7 @@ class DashboardController extends Controller
         $transactions->getCollection()->transform(function ($transaction) {
             $borrower = $transaction->role === 'teacher' 
                 ? \App\Models\Teacher::withTrashed()->find($transaction->user_id)
-                : \App\Models\User::withTrashed()->find($transaction->user_id);
+                : User::withTrashed()->find($transaction->user_id);
             
             $transaction->borrower_name = $borrower 
                 ? trim(($borrower->first_name ?? '') . ' ' . ($borrower->last_name ?? ''))
@@ -276,9 +277,47 @@ class DashboardController extends Controller
             return $transaction;
         });
 
+        // ===== BOOKS CIRCULATION REPORT DATA =====
+        // Use the same total books calculation as the dashboard
+        $totalBooks = Book::sum('copies');
+        
+        // Get currently borrowed book copies
+        $borrowedBooks = \App\Models\BookCopy::whereHas('borrows', function ($query) {
+            $query->whereNull('returned_at');
+        })->count();
+        
+        // Get repaired items - check LostDamagedItem status field for 'repaired'
+        $repairedBooks = LostDamagedItem::where('status', 'repaired')->count();
+        
+        // Get lost items - check LostDamagedItem type field for 'lost'
+        $lostBooks = LostDamagedItem::where('type', 'lost')->count();
+        
+        // Get damaged copies (marked as damaged, excluding those that are repaired or lost)
+        // Get IDs of books that are repaired or lost to exclude them from damaged count
+        $excludeBorrowIds = LostDamagedItem::whereIn('type', ['lost'])
+            ->where('status', '!=', 'repaired')
+            ->pluck('borrow_id')
+            ->toArray();
+        
+        $damagedBooks = \App\Models\BookCopy::where('status', 'damaged')
+            ->orWhere('is_lost_damaged', true);
+        
+        if (!empty($excludeBorrowIds)) {
+            $damagedBooks = $damagedBooks->whereDoesntHave('borrows', function ($query) use ($excludeBorrowIds) {
+                $query->whereIn('id', $excludeBorrowIds);
+            });
+        }
+        
+        $damagedBooks = $damagedBooks->count();
+        
+        // Calculate available books as the remainder
+        // Available = Total - (Borrowed + Damaged + Lost + Repaired)
+        $availableBooks = max(0, $totalBooks - ($borrowedBooks + $damagedBooks + $lostBooks + $repairedBooks));
+
         return view('reports', compact(
             'totalTransactions','totalStudents','totalTeachers','booksInCirculation','overdueItems',
             'popularLabels','popularData','categoryLabels','categoryData','monthlyLabels','monthlyData',
+            'totalBooks', 'availableBooks', 'borrowedBooks', 'damagedBooks', 'lostBooks', 'repairedBooks',
             'transactions', 'sortBy', 'sortOrder', 'statusFilter'
         ));
     }

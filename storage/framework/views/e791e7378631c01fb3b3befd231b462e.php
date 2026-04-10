@@ -1,14 +1,12 @@
-@extends('layouts.app')
-
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div class="container-fluid p-0">
     <div class="d-flex justify-content-between align-items-center mb-4 px-4 pt-4">
         <h2 class="fw-bold mb-0" style="color:#111;">Teacher Details</h2>
         <div class="d-flex gap-2">
-            <a href="{{ route('teachers.edit', $teacher->id) }}" class="btn btn-dark">
+            <a href="<?php echo e(route('teachers.edit', $teacher->id)); ?>" class="btn btn-dark">
                 <i class="bi bi-pencil me-2"></i>Edit
             </a>
-            <a href="{{ route('teachers.index') }}" class="btn btn-outline-secondary">
+            <a href="<?php echo e(route('teachers.index')); ?>" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Back to Teachers
             </a>
         </div>
@@ -19,31 +17,31 @@
             <div class="row">
                 <div class="col-md-6 mb-4">
                     <h6 class="text-muted mb-2">Name</h6>
-                    <p class="fw-semibold">{{ $teacher->name }}</p>
+                    <p class="fw-semibold"><?php echo e($teacher->name); ?></p>
                 </div>
                 <div class="col-md-6 mb-4">
     <h6 class="text-muted mb-2">Email</h6>
-    <p class="text-dark">{{ $teacher->email }}</p>
+    <p class="text-dark"><?php echo e($teacher->email); ?></p>
 </div>
                 <div class="col-md-6 mb-4">
                     <h6 class="text-muted mb-2">Employee ID</h6>
-                    <p class="fw-semibold">{{ $teacher->employee_id }}</p>
+                    <p class="fw-semibold"><?php echo e($teacher->employee_id); ?></p>
                 </div>
                 <div class="col-md-6 mb-4">
                     <h6 class="text-muted mb-2">Rank/Position</h6>
-                    <p class="fw-semibold">{{ $teacher->rank_position }}</p>
+                    <p class="fw-semibold"><?php echo e($teacher->rank_position); ?></p>
                 </div>
                 <div class="col-md-6 mb-4">
                     <h6 class="text-muted mb-2">Gender</h6>
-                    <p><span class="">{{ ucfirst($teacher->gender) }}</span></p>
+                    <p><span class=""><?php echo e(ucfirst($teacher->gender)); ?></span></p>
                 </div>
                 <div class="col-md-6 mb-4">
                     <h6 class="text-muted mb-2">Address</h6>
-                    <p class="fw-semibold">{{ $teacher->address }}</p>
+                    <p class="fw-semibold"><?php echo e($teacher->address); ?></p>
                 </div>
                <div class="col-md-6 mb-4">
     <h6 class="text-muted mb-2">Phone Number</h6>
-    <p class="text-dark">{{ $teacher->phone_number }}</p>
+    <p class="text-dark"><?php echo e($teacher->phone_number); ?></p>
 </div>
             </div>
 
@@ -51,49 +49,49 @@
 
             <div class="mt-4">
                 <h5 class="fw-bold mb-3">Borrow History</h5>
-                @php
+                <?php
                     $currentOrigin = $filterState['origin'] ?? 'all';
                     $currentStatus = $filterState['status'] ?? 'all';
-                @endphp
-                <form method="GET" action="{{ route('teachers.show', $teacher->id) }}" class="d-flex flex-wrap gap-2 align-items-center mb-3">
+                ?>
+                <form method="GET" action="<?php echo e(route('teachers.show', $teacher->id)); ?>" class="d-flex flex-wrap gap-2 align-items-center mb-3">
                     <div class="d-flex align-items-center gap-2">
                         <span class="small text-muted">Borrow Type</span>
                         <select name="origin" class="form-select form-select-sm" style="width: 170px;">
-                            <option value="" {{ $currentOrigin === 'all' ? 'selected' : '' }}>All</option>
-                            <option value="personal" {{ $currentOrigin === 'personal' ? 'selected' : '' }}>Personal</option>
-                            <option value="distribution" {{ $currentOrigin === 'distribution' ? 'selected' : '' }}>Distribution</option>
+                            <option value="" <?php echo e($currentOrigin === 'all' ? 'selected' : ''); ?>>All</option>
+                            <option value="personal" <?php echo e($currentOrigin === 'personal' ? 'selected' : ''); ?>>Personal</option>
+                            <option value="distribution" <?php echo e($currentOrigin === 'distribution' ? 'selected' : ''); ?>>Distribution</option>
                         </select>
                     </div>
 
                     <div class="d-flex align-items-center gap-2">
                         <span class="small text-muted">Book Status</span>
                         <select name="status" class="form-select form-select-sm" style="width: 170px;">
-                            <option value="" {{ $currentStatus === 'all' ? 'selected' : '' }}>All</option>
-                            <option value="lost" {{ $currentStatus === 'lost' ? 'selected' : '' }}>Lost</option>
-                            <option value="damaged" {{ $currentStatus === 'damaged' ? 'selected' : '' }}>Damaged</option>
-                            <option value="repaired" {{ $currentStatus === 'repaired' ? 'selected' : '' }}>Repaired</option>
-                            <option value="found" {{ $currentStatus === 'found' ? 'selected' : '' }}>Found</option>
+                            <option value="" <?php echo e($currentStatus === 'all' ? 'selected' : ''); ?>>All</option>
+                            <option value="lost" <?php echo e($currentStatus === 'lost' ? 'selected' : ''); ?>>Lost</option>
+                            <option value="damaged" <?php echo e($currentStatus === 'damaged' ? 'selected' : ''); ?>>Damaged</option>
+                            <option value="repaired" <?php echo e($currentStatus === 'repaired' ? 'selected' : ''); ?>>Repaired</option>
+                            <option value="found" <?php echo e($currentStatus === 'found' ? 'selected' : ''); ?>>Found</option>
                         </select>
                     </div>
 
                     <button type="submit" class="btn btn-sm btn-dark">
                         <i class="bi bi-search me-1"></i>Filter
                     </button>
-                    <a href="{{ route('teachers.show', $teacher->id) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+                    <a href="<?php echo e(route('teachers.show', $teacher->id)); ?>" class="btn btn-sm btn-outline-secondary">Reset</a>
 
-                    @if(isset($statusCounts) && is_array($statusCounts))
+                    <?php if(isset($statusCounts) && is_array($statusCounts)): ?>
                         <div class="ms-auto d-flex flex-wrap gap-2">
-                            <span class="badge text-danger">Lost: {{ $statusCounts['lost'] ?? 0 }}</span>
-                            <span class="badge text-warning text-yellow">Damaged: {{ $statusCounts['damaged'] ?? 0 }}</span>
-                            <span class="badge text-info text-blue">Repaired: {{ $statusCounts['repaired'] ?? 0 }}</span>
-                            <span class="badge text-success">Found: {{ $statusCounts['found'] ?? 0 }}</span>
+                            <span class="badge text-danger">Lost: <?php echo e($statusCounts['lost'] ?? 0); ?></span>
+                            <span class="badge text-warning text-yellow">Damaged: <?php echo e($statusCounts['damaged'] ?? 0); ?></span>
+                            <span class="badge text-info text-blue">Repaired: <?php echo e($statusCounts['repaired'] ?? 0); ?></span>
+                            <span class="badge text-success">Found: <?php echo e($statusCounts['found'] ?? 0); ?></span>
                         </div>
-                    @endif
+                    <?php endif; ?>
                 </form>
-                @php
+                <?php
                     $allBorrows = $teacher->borrows;
-                @endphp
-                @if($allBorrows->count() > 0)
+                ?>
+                <?php if($allBorrows->count() > 0): ?>
                     <div style="max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.25rem; width: 100%;">
                         <table class="table table-bordered mb-0">
                             <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
@@ -109,8 +107,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($allBorrows as $borrow)
-                                    @php
+                                <?php $__currentLoopData = $allBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                    <?php
                                         $bookTitle = $borrow->book ? $borrow->book->title : 'Book not found';
                                         $bookAuthor = $borrow->book ? ($borrow->book->author ?? 'N/A') : 'N/A';
                                         $bookIsbn = $borrow->book ? ($borrow->book->isbn ?? 'N/A') : 'N/A';
@@ -127,26 +125,26 @@
                                                 $lossType = 'damaged';
                                             }
                                         }
-                                    @endphp
+                                    ?>
                                     <tr>
-                                        <td>{{ $bookTitle }}</td>
-                                        <td>{{ $bookAuthor }}</td>
-                                        <td>{{ $bookIsbn }}</td>
+                                        <td><?php echo e($bookTitle); ?></td>
+                                        <td><?php echo e($bookAuthor); ?></td>
+                                        <td><?php echo e($bookIsbn); ?></td>
                                         <td>
-                                            <div class="font-monospace">{{ $copyNumberDisplay }}</div>
-                                            <div class="small text-muted">Ctrl#: <span class="font-monospace">{{ $controlNumberRaw }}</span></div>
+                                            <div class="font-monospace"><?php echo e($copyNumberDisplay); ?></div>
+                                            <div class="small text-muted">Ctrl#: <span class="font-monospace"><?php echo e($controlNumberRaw); ?></span></div>
                                         </td>
-                                        <td>{{ $borrowedAt }}</td>
-                                        <td>{{ $dueDate }}</td>
+                                        <td><?php echo e($borrowedAt); ?></td>
+                                        <td><?php echo e($dueDate); ?></td>
                                         <td>
-                                            @if($status === 'Returned')
+                                            <?php if($status === 'Returned'): ?>
                                                 <span class="badge bg-success">Returned</span>
-                                            @else
+                                            <?php else: ?>
                                                 <span class="badge bg-primary">Active</span>
-                                            @endif
+                                            <?php endif; ?>
                                         </td>
                                         <td>
-                                            @php
+                                            <?php
                                                 $issueBadge = 'bg-secondary';
                                                 $issueIcon = '<i class="bi bi-info-circle me-1"></i>';
                                                 $issueLabel = $lossType ? ucfirst($lossType) : '';
@@ -163,21 +161,21 @@
                                                     $issueBadge = 'bg-success';
                                                     $issueIcon = '<i class="bi bi-check-circle me-1"></i>';
                                                 }
-                                            @endphp
-                                            @if($lossType)
-                                                <span class="badge {{ $issueBadge }}">{!! $issueIcon !!}{{ $issueLabel }}</span>
-                                            @else
+                                            ?>
+                                            <?php if($lossType): ?>
+                                                <span class="badge <?php echo e($issueBadge); ?>"><?php echo $issueIcon; ?><?php echo e($issueLabel); ?></span>
+                                            <?php else: ?>
                                                 <span class="text-muted">-</span>
-                                            @endif
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
-                                @endforeach
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </tbody>
                         </table>
                     </div>
-                @else
+                <?php else: ?>
                     <div class="text-muted">No borrow history.</div>
-                @endif
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -189,4 +187,6 @@
         padding-right: 0;
     }
 </style>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\user\Herd\library\resources\views/users/show_teacher.blade.php ENDPATH**/ ?>

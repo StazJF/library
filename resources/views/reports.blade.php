@@ -286,6 +286,158 @@
             </div>
         </div>
     </div>
+
+    <!-- Books Circulation Report Section -->
+    <div class="row g-3 mt-4">
+        <div class="col-lg-12">
+            <div class="p-3 rounded shadow-sm bg-white">
+                <h5 class="mb-4">Books Circulation Report</h5>
+
+                <!-- Books Circulation Statistics Cards -->
+                <div class="row g-3">
+                    <div class="col-md-2">
+                        <div class="p-3 rounded border-start border-4 border-primary bg-light">
+                            <div class="small text-muted">Total Books</div>
+                            <div class="h4 mb-0 text-primary">{{ $totalBooks ?? 0 }}</div>
+                            <div class="small text-muted">In system</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 rounded border-start border-4 border-success bg-light">
+                            <div class="small text-muted">Available</div>
+                            <div class="h4 mb-0 text-success">{{ $availableBooks ?? 0 }}</div>
+                            <div class="small text-muted">Ready to borrow</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 rounded border-start border-4 border-info bg-light">
+                            <div class="small text-muted">Currently Borrowed</div>
+                            <div class="h4 mb-0 text-info">{{ $borrowedBooks ?? 0 }}</div>
+                            <div class="small text-muted">In circulation</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 rounded border-start border-4 border-warning bg-light">
+                            <div class="small text-muted">Damaged</div>
+                            <div class="h4 mb-0 text-warning">{{ $damagedBooks ?? 0 }}</div>
+                            <div class="small text-muted">Needs repair</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 rounded border-start border-4 border-danger bg-light">
+                            <div class="small text-muted">Lost</div>
+                            <div class="h4 mb-0 text-danger">{{ $lostBooks ?? 0 }}</div>
+                            <div class="small text-muted">Not recovered</div>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="p-3 rounded border-start border-4 border-secondary bg-light">
+                            <div class="small text-muted">Repaired</div>
+                            <div class="h4 mb-0 text-secondary">{{ $repairedBooks ?? 0 }}</div>
+                            <div class="small text-muted">Back in stock</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Circulation Summary -->
+                <div class="row g-3 mt-3">
+                    <div class="col-md-6">
+                        <div class="p-3 rounded bg-light">
+                            <h6 class="text-muted mb-3">Circulation Status</h6>
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small">Availability Rate</span>
+                                    <span class="small font-weight-bold">
+                                        @php
+                                            $availabilityRate = ($totalBooks ?? 0) > 0 ? round((($availableBooks ?? 0) / ($totalBooks ?? 0)) * 100) : 0;
+                                        @endphp
+                                        {{ $availabilityRate }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-success" style="width: {{ $availabilityRate }}%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small">Borrow Rate</span>
+                                    <span class="small font-weight-bold">
+                                        @php
+                                            $borrowRate = ($totalBooks ?? 0) > 0 ? round((($borrowedBooks ?? 0) / ($totalBooks ?? 0)) * 100) : 0;
+                                        @endphp
+                                        {{ $borrowRate }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-info" style="width: {{ $borrowRate }}%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span class="small">Problem Items</span>
+                                    <span class="small font-weight-bold">
+                                        @php
+                                            $problemRate = ($totalBooks ?? 0) > 0 ? round(((($damagedBooks ?? 0) + ($lostBooks ?? 0)) / ($totalBooks ?? 0)) * 100) : 0;
+                                        @endphp
+                                        {{ $problemRate }}%
+                                    </span>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar bg-danger" style="width: {{ $problemRate }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 rounded bg-light">
+                            <h6 class="text-muted mb-3">Quick Stats</h6>
+                            <div class="row">
+                                <div class="col-6 mb-2">
+                                    <small class="text-muted">Books in Good Condition</small>
+                                    <div class="h5 mb-0">
+                                        @php
+                                            $goodCondition = ($availableBooks ?? 0) + ($borrowedBooks ?? 0);
+                                        @endphp
+                                        {{ $goodCondition }}
+                                    </div>
+                                </div>
+                                <div class="col-6 mb-2">
+                                    <small class="text-muted">Problem Books</small>
+                                    <div class="h5 mb-0 text-danger">
+                                        @php
+                                            $problemBooks = ($damagedBooks ?? 0) + ($lostBooks ?? 0);
+                                        @endphp
+                                        {{ $problemBooks }}
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Recovery Rate</small>
+                                    <div class="h5 mb-0 text-success">
+                                        @php
+                                            $recoveryRate = (($damagedBooks ?? 0) + ($lostBooks ?? 0)) > 0 ? round((($repairedBooks ?? 0) / (($damagedBooks ?? 0) + ($lostBooks ?? 0))) * 100) : 0;
+                                        @endphp
+                                        {{ $recoveryRate }}%
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <small class="text-muted">Turnover Status</small>
+                                    <div class="h5 mb-0">
+                                        @if($borrowRate > 60)
+                                            <span class="badge bg-info">High</span>
+                                        @elseif($borrowRate > 30)
+                                            <span class="badge bg-warning">Medium</span>
+                                        @else
+                                            <span class="badge bg-success">Low</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 @php
     // Monochrome defaults for a clean black & white dashboard look

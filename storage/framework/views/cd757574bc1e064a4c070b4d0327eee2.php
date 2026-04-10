@@ -480,4 +480,4 @@
     <?php echo $__env->yieldPushContent('scripts'); ?>
 </body>
 </html>
-<?php /**PATH C:\Users\jimmu\Herd\library\resources\views/layouts/app.blade.php ENDPATH**/ ?>
+<?php /**PATH C:\Users\user\Herd\library\resources\views/layouts/app.blade.php ENDPATH**/ ?>

@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container-fluid py-4">
-    <div class="d-flex align-items-center mb-4 gap-3">
+<div class="container-fluid p-0">
+    <div class="d-flex align-items-center mb-4 gap-3 px-4 pt-3">
         <a href="{{ route('teachers.index') }}" class="btn btn-secondary btn-sm">
             <i class="bi bi-arrow-left"></i> Back to Teachers
         </a>
         <h1 class="h3 mb-0">Borrow History - {{ $teacher->name }}</h1>
     </div>
 
-    <div class="row mb-4">
-        <div class="col-md-12">
+    <div class="row mb-4 mx-0 px-4">
+        <div class="col-md-12 ps-0 pe-0">
             <div class="card">
                 <div class="card-body">
                     <div class="row">
@@ -36,52 +36,105 @@
         </div>
     </div>
 
-    <div class="card shadow-sm">
+    <div class="card shadow-sm mx-4">
         <div class="card-header bg-white text-black">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="bi bi-book me-2"></i>All Borrow History
                 </h5>
-                <div class="btn-group" role="group">
-                    <a href="{{ route('teachers.borrow-history', $teacher) }}" 
-                       class="btn btn-sm {{ !isset($filter) || $filter === 'all' ? 'btn-primary' : 'btn-outline-primary' }}">
-                        <i class="bi bi-list me-1"></i>All
-                    </a>
-                    <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'filter' => 'personal']) }}" 
-                       class="btn btn-sm {{ isset($filter) && $filter === 'personal' ? 'btn-primary' : 'btn-outline-primary' }}">
-                        <i class="bi bi-person-check me-1"></i>Personal
-                    </a>
-                    <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'filter' => 'distribution']) }}" 
-                       class="btn btn-sm {{ isset($filter) && $filter === 'distribution' ? 'btn-primary' : 'btn-outline-primary' }}">
-                        <i class="bi bi-box-seam me-1"></i>Distribution
-                    </a>
-                    <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'filter' => 'damaged']) }}" 
-                       class="btn btn-sm {{ isset($filter) && $filter === 'damaged' ? 'btn-danger' : 'btn-outline-danger' }} d-flex align-items-center gap-2"
-                       title="Lost: {{ $damagedCounts['lost'] }} | Damaged: {{ $damagedCounts['damaged'] }} | Repaired: {{ $damagedCounts['repaired'] }}">
-                        <i class="bi bi-exclamation-triangle me-1"></i>Lost/Damaged/Repaired
-                        @if($damagedCounts['total'] > 0)
-                            <span class="badge bg-light text-danger">{{ $damagedCounts['total'] }}</span>
-                        @endif
-                    </a>
+                @php
+                    $currentOrigin = $filterState['origin'] ?? 'all';
+                    $originParam = $currentOrigin === 'all' ? null : $currentOrigin;
+                    $currentStatus = $filterState['status'] ?? 'all';
+                    $statusParam = $currentStatus === 'all' ? null : $currentStatus;
+                @endphp
+                <div class="d-flex flex-wrap gap-2 justify-content-end align-items-center">
+                    <form method="GET" action="{{ route('teachers.borrow-history', ['teacher' => $teacher]) }}" class="d-flex flex-wrap gap-2 align-items-center">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small text-muted">Borrow Type</span>
+                            <select name="origin" class="form-select form-select-sm" style="width: 170px;">
+                                <option value="" {{ $currentOrigin === 'all' ? 'selected' : '' }}>All</option>
+                                <option value="personal" {{ $currentOrigin === 'personal' ? 'selected' : '' }}>Personal</option>
+                                <option value="distribution" {{ $currentOrigin === 'distribution' ? 'selected' : '' }}>Distribution</option>
+                            </select>
+                        </div>
+
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="small text-muted">Book Status</span>
+                            <select name="status" class="form-select form-select-sm" style="width: 170px;">
+                                <option value="" {{ $currentStatus === 'all' ? 'selected' : '' }}>All</option>
+                                <option value="lost" {{ $currentStatus === 'lost' ? 'selected' : '' }}>Lost</option>
+                                <option value="damaged" {{ $currentStatus === 'damaged' ? 'selected' : '' }}>Damaged</option>
+                                <option value="repaired" {{ $currentStatus === 'repaired' ? 'selected' : '' }}>Repaired</option>
+                                <option value="found" {{ $currentStatus === 'found' ? 'selected' : '' }}>Found</option>
+                            </select>
+                        </div>
+
+                        <button type="submit" class="btn btn-sm btn-dark">
+                            <i class="bi bi-search me-1"></i>Filter
+                        </button>
+
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher]) }}" class="btn btn-sm btn-outline-secondary">
+                            Reset
+                        </a>
+                    </form>
+
+                    <div class="btn-group" role="group" aria-label="Borrow Type Filter">
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher]) }}"
+                           class="btn btn-sm {{ $currentOrigin === 'all' ? 'btn-primary' : 'btn-outline-primary' }}">
+                            <i class="bi bi-list me-1"></i>All
+                        </a>
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => 'personal', 'status' => $statusParam]) }}"
+                           class="btn btn-sm {{ $currentOrigin === 'personal' ? 'btn-primary' : 'btn-outline-primary' }}">
+                            <i class="bi bi-person-check me-1"></i>Personal
+                        </a>
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => 'distribution', 'status' => $statusParam]) }}"
+                           class="btn btn-sm {{ $currentOrigin === 'distribution' ? 'btn-primary' : 'btn-outline-primary' }}">
+                            <i class="bi bi-box-seam me-1"></i>Distribution
+                        </a>
+                    </div>
+
+                    <div class="btn-group" role="group" aria-label="Book Status Filter">
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => $originParam]) }}"
+                           class="btn btn-sm {{ $currentStatus === 'all' ? 'btn-secondary' : 'btn-outline-secondary' }}">
+                            Status: All
+                        </a>
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => $originParam, 'status' => 'lost']) }}"
+                           class="btn btn-sm {{ $currentStatus === 'lost' ? 'btn-danger' : 'btn-outline-danger' }}">
+                            Lost @if(($statusCounts['lost'] ?? 0) > 0) <span class="badge bg-light text-danger ms-1">{{ $statusCounts['lost'] }}</span> @endif
+                        </a>
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => $originParam, 'status' => 'damaged']) }}"
+                           class="btn btn-sm {{ $currentStatus === 'damaged' ? 'btn-warning' : 'btn-outline-warning' }}">
+                            Damaged @if(($statusCounts['damaged'] ?? 0) > 0) <span class="badge bg-light text-dark ms-1">{{ $statusCounts['damaged'] }}</span> @endif
+                        </a>
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => $originParam, 'status' => 'repaired']) }}"
+                           class="btn btn-sm {{ $currentStatus === 'repaired' ? 'btn-info' : 'btn-outline-info' }}">
+                            Repaired @if(($statusCounts['repaired'] ?? 0) > 0) <span class="badge bg-light text-info ms-1">{{ $statusCounts['repaired'] }}</span> @endif
+                        </a>
+                        <a href="{{ route('teachers.borrow-history', ['teacher' => $teacher, 'origin' => $originParam, 'status' => 'found']) }}"
+                           class="btn btn-sm {{ $currentStatus === 'found' ? 'btn-success' : 'btn-outline-success' }}">
+                            Found @if(($statusCounts['found'] ?? 0) > 0) <span class="badge bg-light text-success ms-1">{{ $statusCounts['found'] }}</span> @endif
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
         <div class="card-body p-0">
             @if($borrows->count() > 0)
-                @if(isset($filter) && $filter === 'damaged' && $damagedCounts['total'] > 0)
+                @if(($filterState['status'] ?? 'all') !== 'all' && ($statusCounts['issues'] ?? 0) > 0)
                     <div class="alert alert-warning m-3 mb-0">
                         <div class="row">
                             <div class="col-md-3">
-                                <strong><i class="bi bi-exclamation-circle me-1"></i>Lost & Found:</strong> {{ $damagedCounts['lost'] }}
+                                <strong><i class="bi bi-exclamation-circle me-1"></i>Lost:</strong> {{ $statusCounts['lost'] ?? 0 }}
                             </div>
                             <div class="col-md-3">
-                                <strong><i class="bi bi-tools me-1"></i>Damaged (Awaiting Repair):</strong> {{ $damagedCounts['damaged'] }}
+                                <strong><i class="bi bi-tools me-1"></i>Damaged:</strong> {{ $statusCounts['damaged'] ?? 0 }}
                             </div>
                             <div class="col-md-3">
-                                <strong><i class="bi bi-check-circle me-1"></i>Repaired:</strong> {{ $damagedCounts['repaired'] }}
+                                <strong><i class="bi bi-check-circle me-1"></i>Repaired:</strong> {{ $statusCounts['repaired'] ?? 0 }}
                             </div>
                             <div class="col-md-3">
-                                <strong><i class="bi bi-basket me-1"></i>Total Issues:</strong> {{ $damagedCounts['total'] }}
+                                <strong><i class="bi bi-search me-1"></i>Found:</strong> {{ $statusCounts['found'] ?? 0 }}
                             </div>
                         </div>
                     </div>
@@ -94,11 +147,12 @@
                                 <th class="border-0 fw-semibold">Book Title</th>
                                 <th class="border-0 fw-semibold">Author</th>
                                 <th class="border-0 fw-semibold">ISBN</th>
+                                <th class="border-0 fw-semibold">Control No.</th>
                                 <th class="border-0 fw-semibold">Borrowed On</th>
                                 <th class="border-0 fw-semibold">Due Date</th>
                                 <th class="border-0 fw-semibold">Returned On</th>
                                 <th class="border-0 fw-semibold">Status</th>
-                                <th class="border-0 fw-semibold">Remarks</th>
+                                <th class="border-0 fw-semibold">Book Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -123,6 +177,10 @@
                                     <td>
                                         <small class="text-muted">{{ $bookIsbn }}</small>
                                     </td>
+                                    <td>
+                                        <div class="font-monospace">{{ $borrow->getCopyNumberDisplay() }}</div>
+                                        <div class="small text-muted">Ctrl#: <span class="font-monospace">{{ $borrow->getControlNumberRaw() }}</span></div>
+                                    </td>
                                     <td>{{ $borrowedAt }}</td>
                                     <td>{{ $dueDate }}</td>
                                     <td>{{ $returnedAt }}</td>
@@ -133,31 +191,34 @@
                                     </td>
                                     <td>
                                         @php
-                                            $remarkBadgeClass = 'bg-secondary';
-                                            $remarkIcon = '';
-                                            $displayRemark = '';
-                                            $shouldDisplay = false;
-                                            
-                                            // Check if there's a LostDamagedItem record
-                                            $ldi = $borrow->lostDamagedItem;
-                                            if ($ldi && $ldi->user_id === $teacher->id && $ldi->role === 'teacher') {
-                                                // Only show lost items if they have been found
-                                                if (strtolower($ldi->type) === 'lost' && strtolower($ldi->status) === 'found') {
-                                                    $shouldDisplay = true;
-                                                    $remarkBadgeClass = 'bg-success';
-                                                    $remarkIcon = '<i class="bi bi-check-circle me-1"></i>';
-                                                    $displayRemark = 'Lost & Found';
-                                                } 
-                                                // Only show damaged items if they have been repaired
-                                                elseif (strtolower($ldi->type) === 'damaged' && strtolower($ldi->status) === 'repaired') {
-                                                    $shouldDisplay = true;
-                                                    $remarkBadgeClass = 'bg-info text-white';
-                                                    $remarkIcon = '<i class="bi bi-check-circle me-1"></i>';
-                                                    $displayRemark = 'Repaired';
+                                            $lossType = $borrow->getLossType(); // lost, damaged, repaired, found (based on latest history when available)
+                                            if (!$lossType) {
+                                                if (($borrow->remark ?? '') === 'Lost') {
+                                                    $lossType = 'lost';
+                                                } elseif (($borrow->remark ?? '') === 'Damage') {
+                                                    $lossType = 'damaged';
                                                 }
                                             }
+
+                                            $remarkBadgeClass = 'bg-secondary';
+                                            $remarkIcon = '<i class="bi bi-info-circle me-1"></i>';
+                                            $displayRemark = $lossType ? ucfirst($lossType) : '';
+
+                                            if ($lossType === 'lost') {
+                                                $remarkBadgeClass = 'bg-danger';
+                                                $remarkIcon = '<i class="bi bi-exclamation-triangle me-1"></i>';
+                                            } elseif ($lossType === 'damaged') {
+                                                $remarkBadgeClass = 'bg-warning text-dark';
+                                                $remarkIcon = '<i class="bi bi-tools me-1"></i>';
+                                            } elseif ($lossType === 'repaired') {
+                                                $remarkBadgeClass = 'bg-info text-white';
+                                                $remarkIcon = '<i class="bi bi-check-circle me-1"></i>';
+                                            } elseif ($lossType === 'found') {
+                                                $remarkBadgeClass = 'bg-success';
+                                                $remarkIcon = '<i class="bi bi-check-circle me-1"></i>';
+                                            }
                                         @endphp
-                                        @if($shouldDisplay)
+                                        @if($lossType)
                                             <span class="badge {{ $remarkBadgeClass }}">
                                                 {!! $remarkIcon !!}{{ $displayRemark }}
                                             </span>
@@ -199,4 +260,11 @@
         </div>
     </div>
 </div>
+
+<style>
+    body {
+        padding-left: 0;
+        padding-right: 0;
+    }
+</style>
 @endsection

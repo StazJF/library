@@ -108,6 +108,63 @@ class Borrow extends Model
         return User::find($this->user_id);
     }
 
+    public function getControlNumberDisplay(): string
+    {
+        return $this->getCopyNumberDisplay();
+    }
+
+    public function getControlNumberRaw(): string
+    {
+        $raw = trim((string) ($this->copy_number ?? $this->bookCopy?->control_number ?? ''));
+        if ($raw === '' || strtoupper($raw) === 'N/A') {
+            return '-';
+        }
+        return $raw;
+    }
+
+    public function getCopyNumberDisplay(): string
+    {
+        $raw = $this->getControlNumberRaw();
+        if ($raw === '-') {
+            return '-';
+        }
+
+        // If stored as "001-002", show the per-copy number ("002").
+        if (preg_match('/^\d{3}-\d{3}$/', $raw) === 1) {
+            return explode('-', $raw, 2)[1];
+        }
+
+        // If stored as "002", keep as-is (preserves leading zeros).
+        if (preg_match('/^\d{3}$/', $raw) === 1) {
+            return $raw;
+        }
+
+        // Best-effort fallback: show trailing 3 digits if present.
+        if (preg_match('/(\d{3})$/', $raw, $m) === 1) {
+            return $m[1];
+        }
+
+        return '-';
+    }
+
+    private function getLatestLostDamagedHistory(): ?LostDamagedItemHistory
+    {
+        $lostDamagedItem = $this->lostDamagedItem;
+        if (!$lostDamagedItem) {
+            return null;
+        }
+
+        if ($lostDamagedItem->relationLoaded('histories')) {
+            return $lostDamagedItem->histories
+                ->sortByDesc(fn ($h) => $h->created_at)
+                ->first();
+        }
+
+        return $lostDamagedItem->histories()
+            ->latest('created_at')
+            ->first();
+    }
+
     /**
      * Get the current transaction status considering lost/damaged/repaired/found history
      * This method checks if there's a related LostDamagedItem and returns the appropriate
@@ -123,12 +180,19 @@ class Borrow extends Model
             return $this->return_status ?? self::STATUS_PENDING;
         }
 
-        // Item exists, get its latest history to determine current state
-        $latestHistory = $lostDamagedItem->histories()
-            ->latest('created_at')
-            ->first();
+        $latestHistory = $this->getLatestLostDamagedHistory();
 
         if (!$latestHistory) {
+            // No history: fall back to lost_damaged_items.status when possible
+            if ($lostDamagedItem->status === 'repaired') {
+                return self::STATUS_REPAIRED;
+            }
+            if ($lostDamagedItem->status === 'returned') {
+                return $lostDamagedItem->type === 'lost'
+                    ? self::STATUS_FOUND
+                    : self::STATUS_REPAIRED;
+            }
+
             // No history, return the type-based status
             return $lostDamagedItem->type === 'damaged' 
                 ? self::STATUS_DAMAGED_FOR_REPAIR 
@@ -171,11 +235,15 @@ class Borrow extends Model
             return null;
         }
 
-        $latestHistory = $this->lostDamagedItem->histories()
-            ->latest('created_at')
-            ->first();
+        $latestHistory = $this->getLatestLostDamagedHistory();
 
         if (!$latestHistory) {
+            if ($this->lostDamagedItem->status === 'repaired') {
+                return 'repaired';
+            }
+            if ($this->lostDamagedItem->status === 'returned') {
+                return $this->lostDamagedItem->type === 'lost' ? 'found' : 'repaired';
+            }
             return $this->lostDamagedItem->type;
         }
 
