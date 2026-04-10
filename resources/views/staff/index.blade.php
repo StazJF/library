@@ -5,7 +5,7 @@
     {{-- Header Section --}}
     <div class="mb-4">
         <div>
-            <h4 class="mb-1">Staff Management</h4>
+            <h4 class="mb-1">User Management</h4>
             <p class="text-muted mb-0">Manage library staff accounts and permissions</p>
         </div>
     </div>
@@ -32,7 +32,7 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-dark text-white">
                     <h5 class="card-title mb-0">
-                        <i class="bi bi-person-plus me-2"></i>Add New Staff
+                        <i class="bi bi-person-plus me-2"></i>Add New User
                     </h5>
                 </div>
                 <div class="card-body">
