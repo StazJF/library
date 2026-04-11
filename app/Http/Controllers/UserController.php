@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\ActivityLog; 
 use App\Models\Teacher;
+use App\Models\BookCopy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -12,6 +13,38 @@ use Carbon\Carbon;
 
 class UserController extends Controller
 {
+    private function hydrateMissingBookCopy($borrows): void
+    {
+        foreach ($borrows as $borrow) {
+            if ($borrow->bookCopy) {
+                continue;
+            }
+
+            $copyNumber = $borrow->copy_number ? trim((string) $borrow->copy_number) : null;
+            if (!$copyNumber) {
+                continue;
+            }
+
+            $copy = BookCopy::where('book_id', $borrow->book_id)
+                ->where('control_number', $copyNumber)
+                ->first();
+
+            if (!$copy && preg_match('/^\d{3}$/', $copyNumber) === 1) {
+                $candidates = BookCopy::where('book_id', $borrow->book_id)
+                    ->where('control_number', 'like', $copyNumber . '-%')
+                    ->limit(2)
+                    ->get();
+                if ($candidates->count() === 1) {
+                    $copy = $candidates->first();
+                }
+            }
+
+            if ($copy) {
+                $borrow->setRelation('bookCopy', $copy);
+            }
+        }
+    }
+
     public function teachers(Request $request)
     {
         try {
@@ -180,14 +213,102 @@ class UserController extends Controller
     public function show(User $user)
     {
         try {
-            $user->load('borrows.book');
+            $origin = request()->query('origin'); // personal|distribution|null
+            $status = request()->query('status'); // lost|damaged|repaired|found|issues|null
 
-            $user->borrows->each(function($borrow) {
-                if ($borrow->borrowed_at) $borrow->borrowed_at = Carbon::parse($borrow->borrowed_at);
-                if ($borrow->due_date)    $borrow->due_date    = Carbon::parse($borrow->due_date);
-            });
+            $origin = in_array($origin, ['personal', 'distribution'], true) ? $origin : null;
+            $status = in_array($status, ['lost', 'damaged', 'repaired', 'found', 'issues'], true) ? $status : null;
 
-            return view('users.show', compact('user'));
+            $query = $user->borrows()
+                ->with([
+                    'book',
+                    'bookCopy',
+                    'lostDamagedItem' => function ($q) {
+                        $q->with('histories');
+                    },
+                ])
+                ->latest('borrowed_at');
+
+            if ($origin) {
+                $query->where('origin', $origin);
+            }
+
+            if ($status === 'issues') {
+                $query->where(function ($q) {
+                    $q->whereHas('lostDamagedItem')
+                        ->orWhereIn('remark', ['Lost', 'Damage']);
+                });
+            } elseif ($status === 'lost') {
+                $query->where(function ($q) {
+                    $q->whereHas('lostDamagedItem', function ($inner) {
+                        $inner->where('type', 'lost')->where('status', 'active');
+                    })->orWhere('remark', 'Lost');
+                });
+            } elseif ($status === 'damaged') {
+                $query->where(function ($q) {
+                    $q->whereHas('lostDamagedItem', function ($inner) {
+                        $inner->where('type', 'damaged')->where('status', 'active');
+                    })->orWhere('remark', 'Damage');
+                });
+            } elseif ($status === 'repaired') {
+                $query->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'damaged')
+                        ->whereIn('status', ['repaired', 'returned']);
+                });
+            } elseif ($status === 'found') {
+                $query->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'lost')->where('status', 'returned');
+                });
+            }
+
+            $borrows = $query->get();
+            $this->hydrateMissingBookCopy($borrows);
+
+            $totalBorrows = $user->borrows()->count();
+
+            $allBorrows = $user->borrows()
+                ->with(['lostDamagedItem' => function ($q) {
+                    $q->with('histories');
+                }])
+                ->get();
+            $this->hydrateMissingBookCopy($allBorrows);
+
+            $statusCounts = [
+                'lost' => 0,
+                'damaged' => 0,
+                'repaired' => 0,
+                'found' => 0,
+                'issues' => 0,
+            ];
+
+            foreach ($allBorrows as $b) {
+                $lossType = $b->getLossType();
+                if (!$lossType) {
+                    if (($b->remark ?? '') === 'Lost') {
+                        $lossType = 'lost';
+                    } elseif (($b->remark ?? '') === 'Damage') {
+                        $lossType = 'damaged';
+                    }
+                }
+
+                if ($lossType === 'lost') {
+                    $statusCounts['lost']++;
+                } elseif ($lossType === 'damaged') {
+                    $statusCounts['damaged']++;
+                } elseif ($lossType === 'repaired') {
+                    $statusCounts['repaired']++;
+                } elseif ($lossType === 'found') {
+                    $statusCounts['found']++;
+                }
+            }
+            $statusCounts['issues'] = $statusCounts['lost'] + $statusCounts['damaged'] + $statusCounts['repaired'] + $statusCounts['found'];
+
+            $filterState = [
+                'origin' => $origin ?? 'all',
+                'status' => $status ?? 'all',
+            ];
+
+            return view('users.show', compact('user', 'borrows', 'totalBorrows', 'filterState', 'statusCounts'));
         } catch (\Exception $e) {
             Log::error('Error retrieving user: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
             return redirect()->route('users.index')->with('error', 'An error occurred while retrieving the user.');
@@ -197,12 +318,12 @@ class UserController extends Controller
     public function print(User $user)
     {
         try {
-            $user->load('borrows.book');
-
-            $user->borrows->each(function($borrow) {
-                if ($borrow->borrowed_at) $borrow->borrowed_at = Carbon::parse($borrow->borrowed_at);
-                if ($borrow->due_date)    $borrow->due_date    = Carbon::parse($borrow->due_date);
-            });
+            $user->load([
+                'borrows.book',
+                'borrows.bookCopy',
+                'borrows.lostDamagedItem.histories',
+            ]);
+            $this->hydrateMissingBookCopy($user->borrows);
 
             return view('users.print-user', compact('user'));
         } catch (\Exception $e) {
@@ -549,4 +670,3 @@ public function printTeachers()
     }
 
 }
-

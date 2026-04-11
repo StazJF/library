@@ -28,7 +28,10 @@ class User extends Authenticatable
 
     public function borrows()
     {
-        return $this->hasMany(Borrow::class);
+        return $this->hasMany(Borrow::class, 'user_id', 'id')
+            ->where(function ($q) {
+                $q->whereNull('role')->orWhere('role', 'student');
+            });
     }
 
     protected $dates = ['deleted_at'];

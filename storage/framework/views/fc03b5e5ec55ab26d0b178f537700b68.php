@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Student Report - {{ $user->first_name }} {{ $user->last_name }} - SNHS Library</title>
+    <title>Student Report - <?php echo e($user->first_name); ?> <?php echo e($user->last_name); ?> - SNHS Library</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; }
@@ -77,57 +77,64 @@
 </head>
 <body>
 
-{{-- Print Controls --}}
+
 <div class="no-print btn-group-print">
-    <a href="{{ route('users.show', $user->id) }}" class="btn btn-secondary btn-sm">← Back to Details</a>
+    <a href="<?php echo e(route('users.show', $user->id)); ?>" class="btn btn-secondary btn-sm">← Back to Details</a>
     <button class="btn btn-primary btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print This Page</button>
 </div>
 
-{{-- School Header --}}
+
 <div class="header">
-    <img src="{{ asset('images/snhs-logo.png') }}" alt="SNHS Logo" class="school-logo">
+    <img src="<?php echo e(asset('images/snhs-logo.png')); ?>" alt="SNHS Logo" class="school-logo">
     <h1 class="school-name">Subic National High School</h1>
     <p class="school-address">Mangan-vaca, Subic, Zambales</p>
     <h2 class="report-title">Student Report - Borrowing History</h2>
 </div>
 
-{{-- Report Metadata --}}
+
 <div class="report-meta">
     <div>
-        <strong>Report Date:</strong> {{ now()->format('M d, Y') }}
+        <strong>Report Date:</strong> <?php echo e(now()->format('M d, Y')); ?>
+
     </div>
     <div>
         <strong>Time:</strong> <span id="current-time"></span>
     </div>
 </div>
 
-{{-- User Information --}}
+
 <div class="user-info">
     <h5>Student Information</h5>
     <div class="user-info-row">
         <div class="user-info-item">
-            <strong>Name:</strong> {{ $user->first_name }} {{ $user->last_name }}
+            <strong>Name:</strong> <?php echo e($user->first_name); ?> <?php echo e($user->last_name); ?>
+
         </div>
         <div class="user-info-item">
-            <strong>LRN:</strong> {{ $user->lrn ?? '-' }}
+            <strong>LRN:</strong> <?php echo e($user->lrn ?? '-'); ?>
+
         </div>
         <div class="user-info-item">
-            <strong>Grade & Section:</strong> {{ $user->grade_section ?? '-' }}
+            <strong>Grade & Section:</strong> <?php echo e($user->grade_section ?? '-'); ?>
+
         </div>
         <div class="user-info-item">
-            <strong>Phone:</strong> {{ $user->phone_number ?? '-' }}
+            <strong>Phone:</strong> <?php echo e($user->phone_number ?? '-'); ?>
+
         </div>
         <div class="user-info-item">
-            <strong>Address:</strong> {{ $user->address ?? '-' }}
+            <strong>Address:</strong> <?php echo e($user->address ?? '-'); ?>
+
         </div>
         <div class="user-info-item">
-            <strong>Total Books Borrowed:</strong> {{ $user->borrows->count() }}
+            <strong>Total Books Borrowed:</strong> <?php echo e($user->borrows->count()); ?>
+
         </div>
     </div>
 </div>
 
-{{-- Borrowing History Table --}}
-@if($user->borrows->count() > 0)
+
+<?php if($user->borrows->count() > 0): ?>
 <h5 style="color: #1e3a8a; margin-bottom: 10px; font-weight: bold;">Borrowing History</h5>
 <table>
     <thead>
@@ -145,12 +152,12 @@
         </tr>
     </thead>
     <tbody>
-    @php
+    <?php
         $today = \Carbon\Carbon::today();
         $counter = 1;
-    @endphp
-    @foreach($user->borrows as $borrow)
-        @php
+    ?>
+    <?php $__currentLoopData = $user->borrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+        <?php
             $borrowDate = $borrow->borrowed_at;
             $dueDate = $borrow->due_date;
             $returnedAt = $borrow->returned_at;
@@ -175,27 +182,30 @@
                     $lossType = 'damaged';
                 }
             }
-        @endphp
+        ?>
         <tr>
-            <td class="text-center">{{ $counter++ }}</td>
-            <td><strong>{{ $borrow->book?->title ?? 'Book not found' }}</strong></td>
-            <td>{{ $borrow->book?->author ?? '-' }}</td>
+            <td class="text-center"><?php echo e($counter++); ?></td>
+            <td><strong><?php echo e($borrow->book?->title ?? 'Book not found'); ?></strong></td>
+            <td><?php echo e($borrow->book?->author ?? '-'); ?></td>
             <td class="text-center" style="font-family: monospace;">
-                {{ method_exists($borrow, 'getCopyNumberDisplay') ? $borrow->getCopyNumberDisplay() : ($borrow->copy_number ?? $borrow->bookCopy?->control_number ?? '-') }}
+                <?php echo e(method_exists($borrow, 'getCopyNumberDisplay') ? $borrow->getCopyNumberDisplay() : ($borrow->copy_number ?? $borrow->bookCopy?->control_number ?? '-')); ?>
+
                 <div style="font-size: 10px; color: #666;">
-                    Ctrl#: {{ method_exists($borrow, 'getControlNumberRaw') ? $borrow->getControlNumberRaw() : ($borrow->copy_number ?? $borrow->bookCopy?->control_number ?? '-') }}
+                    Ctrl#: <?php echo e(method_exists($borrow, 'getControlNumberRaw') ? $borrow->getControlNumberRaw() : ($borrow->copy_number ?? $borrow->bookCopy?->control_number ?? '-')); ?>
+
                 </div>
             </td>
-            <td>{{ $borrowDate ? \Carbon\Carbon::parse($borrowDate)->format('M d, Y') : '-' }}</td>
-            <td>{{ $dueDate ? \Carbon\Carbon::parse($dueDate)->format('M d, Y') : '-' }}</td>
-            <td>{{ $returnedAt ? \Carbon\Carbon::parse($returnedAt)->format('M d, Y') : '-' }}</td>
+            <td><?php echo e($borrowDate ? \Carbon\Carbon::parse($borrowDate)->format('M d, Y') : '-'); ?></td>
+            <td><?php echo e($dueDate ? \Carbon\Carbon::parse($dueDate)->format('M d, Y') : '-'); ?></td>
+            <td><?php echo e($returnedAt ? \Carbon\Carbon::parse($returnedAt)->format('M d, Y') : '-'); ?></td>
             <td class="text-center">
-                <span class="badge bg-{{ $borrow->returned_at ? 'success' : 'warning' }}">
-                    {{ $borrow->returned_at ? 'Returned' : 'Borrowed' }}
+                <span class="badge bg-<?php echo e($borrow->returned_at ? 'success' : 'warning'); ?>">
+                    <?php echo e($borrow->returned_at ? 'Returned' : 'Borrowed'); ?>
+
                 </span>
             </td>
             <td>
-                @php
+                <?php
                     $lowerRemark = strtolower($remark);
                     if (str_contains($lowerRemark, 'overdue') || $lowerRemark === 'lost' || $lowerRemark === 'damage') {
                         $rc = 'bg-danger';
@@ -204,11 +214,11 @@
                     } else {
                         $rc = 'bg-success';
                     }
-                @endphp
-                <span class="badge {{ $rc }}">{{ $remark }}</span>
+                ?>
+                <span class="badge <?php echo e($rc); ?>"><?php echo e($remark); ?></span>
             </td>
             <td class="text-center">
-                @php
+                <?php
                     $issueBadge = 'bg-secondary';
                     $issueLabel = $lossType ? ucfirst($lossType) : '';
                     if ($lossType === 'lost') {
@@ -220,20 +230,20 @@
                     } elseif ($lossType === 'found') {
                         $issueBadge = 'bg-success';
                     }
-                @endphp
-                @if($lossType)
-                    <span class="badge {{ $issueBadge }}">{{ $issueLabel }}</span>
-                @else
+                ?>
+                <?php if($lossType): ?>
+                    <span class="badge <?php echo e($issueBadge); ?>"><?php echo e($issueLabel); ?></span>
+                <?php else: ?>
                     -
-                @endif
+                <?php endif; ?>
             </td>
         </tr>
-    @endforeach
+    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
     </tbody>
 </table>
-@else
+<?php else: ?>
     <p style="text-align: center; padding: 20px; color: #666; font-size: 13px;">No borrowing history found.</p>
-@endif
+<?php endif; ?>
 
 <script>
     // Display current time in 12-hour format with AM/PM
@@ -259,3 +269,4 @@
 </script>
 </body>
 </html>
+<?php /**PATH C:\Users\user\Herd\library\resources\views/users/print-user.blade.php ENDPATH**/ ?>
