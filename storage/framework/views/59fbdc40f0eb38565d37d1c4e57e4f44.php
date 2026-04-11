@@ -66,19 +66,19 @@
                     $today = \Carbon\Carbon::today();
                     // Penalty removed — using remarks instead
                 ?>
-                <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
-                    <table class="table table-striped">
-                        <thead>
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                    <table class="table table-sm table-hover" style="text-align: center; vertical-align: middle;">
+                        <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
                             <tr>
-                                <th>Book Title</th>
-                                <th>Author</th>
-                                <th>Control No.</th>
-                                <th>Borrow Date</th>
-                                <th>Due Date</th>
-                                <th>Returned On</th>
-                                <th>Status</th>
-                                <th>Remarks</th>
-                                <th>Book Status</th>
+                                <th style="width: 14%;">Book Title</th>
+                                <th style="width: 10%;">Author</th>
+                                <th style="width: 12%;">Control No.</th>
+                                <th style="width: 11%;">Borrow Date</th>
+                                <th style="width: 11%;">Due Date</th>
+                                <th style="width: 11%;">Returned On</th>
+                                <th style="width: 10%;">Status</th>
+                                <th style="width: 14%;">Remarks</th>
+                                <th style="width: 17%;">Book Status</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -122,7 +122,7 @@
                                     <td><?php echo e($dueDate ? \Carbon\Carbon::parse($dueDate)->format('F j, Y') : '-'); ?></td>
                                     <td><?php echo e($returnedAt ? \Carbon\Carbon::parse($returnedAt)->format('F j, Y') : '-'); ?></td>
                                     <td>
-                                        <span class="badge bg-<?php echo e($borrow->returned_at ? 'success' : 'warning'); ?>">
+                                        <span style="color: <?php echo e($borrow->returned_at ? '#198754' : '#ff9800'); ?>; font-weight: 500;">
                                             <?php echo e($borrow->returned_at ? 'Returned' : 'Borrowed'); ?>
 
                                         </span>
@@ -131,36 +131,36 @@
                                         <?php
                                             $lowerRemark = strtolower($remark);
                                             if (str_contains($lowerRemark, 'overdue') || $lowerRemark === 'lost' || $lowerRemark === 'damage') {
-                                                $rc = 'bg-danger';
+                                                $remarkColor = '#dc3545';
                                             } elseif ($lowerRemark === 'late return') {
-                                                $rc = 'bg-warning';
+                                                $remarkColor = '#ff9800';
                                             } else {
-                                                $rc = 'bg-success';
+                                                $remarkColor = '#198754';
                                             }
                                         ?>
-                                        <span class="badge <?php echo e($rc); ?>"><?php echo e($remark); ?></span>
+                                        <span style="color: <?php echo e($remarkColor); ?>; font-weight: 500;"><?php echo e($remark); ?></span>
                                     </td>
                                     <td>
                                         <?php
-                                            $issueBadge = 'bg-secondary';
+                                            $issueColor = '#6c757d';
                                             $issueIcon = '<i class="bi bi-info-circle me-1"></i>';
                                             $issueLabel = $lossType ? ucfirst($lossType) : '';
                                             if ($lossType === 'lost') {
-                                                $issueBadge = 'bg-danger';
+                                                $issueColor = '#dc3545';
                                                 $issueIcon = '<i class="bi bi-exclamation-triangle me-1"></i>';
                                             } elseif ($lossType === 'damaged') {
-                                                $issueBadge = 'bg-warning text-dark';
+                                                $issueColor = '#ff9800';
                                                 $issueIcon = '<i class="bi bi-tools me-1"></i>';
                                             } elseif ($lossType === 'repaired') {
-                                                $issueBadge = 'bg-info text-white';
+                                                $issueColor = '#0dcaf0';
                                                 $issueIcon = '<i class="bi bi-check-circle me-1"></i>';
                                             } elseif ($lossType === 'found') {
-                                                $issueBadge = 'bg-success';
+                                                $issueColor = '#198754';
                                                 $issueIcon = '<i class="bi bi-check-circle me-1"></i>';
                                             }
                                         ?>
                                         <?php if($lossType): ?>
-                                            <span class="badge <?php echo e($issueBadge); ?>"><?php echo $issueIcon; ?><?php echo e($issueLabel); ?></span>
+                                            <span style="color: <?php echo e($issueColor); ?>; font-weight: 500;"><?php echo $issueIcon; ?><?php echo e($issueLabel); ?></span>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
                                         <?php endif; ?>

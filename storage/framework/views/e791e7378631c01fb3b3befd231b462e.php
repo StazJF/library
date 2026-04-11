@@ -15,7 +15,7 @@
     <div class="card shadow-sm border-0 mx-4">
         <div class="card-body">
             <div class="row">
-                <div class="col-md-6 mb-4">
+                <div class="col-md-8 mb-4">
                     <h6 class="text-muted mb-2">Name</h6>
                     <p class="fw-semibold"><?php echo e($teacher->name); ?></p>
                 </div>
@@ -92,18 +92,18 @@
                     $allBorrows = $teacher->borrows;
                 ?>
                 <?php if($allBorrows->count() > 0): ?>
-                    <div style="max-height: 500px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.25rem; width: 100%;">
-                        <table class="table table-bordered mb-0">
+                    <div style="max-height: 600px; overflow-y: auto; border: 1px solid #dee2e6; border-radius: 0.25rem; width: 100%;">
+                        <table class="table table-sm table-hover mb-0">
                             <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
                                 <tr>
-                                    <th>Title</th>
-                                    <th>Author</th>
-                                    <th>ISBN</th>
-                                    <th>Control No.</th>
-                                    <th>Borrowed At</th>
-                                    <th>Due Date</th>
-                                    <th>Status</th>
-                                    <th>Issue Status</th>
+                                    <th style="width: 18%;">Title</th>
+                                    <th style="width: 12%;">Author</th>
+                                    <th style="width: 10%;">ISBN</th>
+                                    <th style="width: 14%;">Control No.</th>
+                                    <th style="width: 11%;">Borrowed At</th>
+                                    <th style="width: 11%;">Due Date</th>
+                                    <th style="width: 10%;">Status</th>
+                                    <th style="width: 14%;">Issue Status</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -138,32 +138,32 @@
                                         <td><?php echo e($dueDate); ?></td>
                                         <td>
                                             <?php if($status === 'Returned'): ?>
-                                                <span class="badge bg-success">Returned</span>
+                                                <span style="color: #198754; font-weight: 500;">Returned</span>
                                             <?php else: ?>
-                                                <span class="badge bg-primary">Active</span>
+                                                <span style="color: #0c63e4; font-weight: 500;">Active</span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php
-                                                $issueBadge = 'bg-secondary';
+                                                $issueColor = '#6c757d';
                                                 $issueIcon = '<i class="bi bi-info-circle me-1"></i>';
                                                 $issueLabel = $lossType ? ucfirst($lossType) : '';
                                                 if ($lossType === 'lost') {
-                                                    $issueBadge = 'bg-danger';
+                                                    $issueColor = '#dc3545';
                                                     $issueIcon = '<i class="bi bi-exclamation-triangle me-1"></i>';
                                                 } elseif ($lossType === 'damaged') {
-                                                    $issueBadge = 'bg-warning text-dark';
+                                                    $issueColor = '#ff9800';
                                                     $issueIcon = '<i class="bi bi-tools me-1"></i>';
                                                 } elseif ($lossType === 'repaired') {
-                                                    $issueBadge = 'bg-info text-white';
+                                                    $issueColor = '#0dcaf0';
                                                     $issueIcon = '<i class="bi bi-check-circle me-1"></i>';
                                                 } elseif ($lossType === 'found') {
-                                                    $issueBadge = 'bg-success';
+                                                    $issueColor = '#198754';
                                                     $issueIcon = '<i class="bi bi-check-circle me-1"></i>';
                                                 }
                                             ?>
                                             <?php if($lossType): ?>
-                                                <span class="badge <?php echo e($issueBadge); ?>"><?php echo $issueIcon; ?><?php echo e($issueLabel); ?></span>
+                                                <span style="color: <?php echo e($issueColor); ?>; font-weight: 500;"><?php echo $issueIcon; ?><?php echo e($issueLabel); ?></span>
                                             <?php else: ?>
                                                 <span class="text-muted">-</span>
                                             <?php endif; ?>

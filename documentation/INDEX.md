@@ -49,3 +49,10 @@
 - `documentation/07-quality/pitfalls.md`
 - `documentation/07-quality/performance-notes.md`
 - `documentation/07-quality/security-notes.md`
+
+**Architecture & Design Diagrams**
+- `documentation/08-architecture-diagrams/README.md` ← Start here for diagrams overview
+- `documentation/08-architecture-diagrams/01-context-level-diagram.md`
+- `documentation/08-architecture-diagrams/02-top-level-diagram.md`
+- `documentation/08-architecture-diagrams/03-child-level-diagrams.md`
+- `documentation/08-architecture-diagrams/04-hipo-diagrams.md`
