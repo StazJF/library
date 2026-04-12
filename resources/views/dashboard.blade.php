@@ -3,7 +3,7 @@
 @section('content')
 <div class="container">
         @if($nearDueBorrows->count() > 0)
-            <div class="alert alert-warning mb-4">
+            <div class="alert alert-warning mb-4" style="max-height: 100px; overflow-y: auto;">
                 <strong>⚠️ Upcoming Due Dates:</strong><br>
                 The following users have books due within 3 days:<br>
                 <ul class="mb-0">
