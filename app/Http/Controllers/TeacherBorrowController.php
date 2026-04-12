@@ -30,7 +30,17 @@ class TeacherBorrowController extends Controller
     {
         $settings = DB::table('penalty_settings')->first();
         // teachers come from dedicated Teacher model
-        $teachers = Teacher::whereNull('deleted_at')->orderBy('name')->get();
+        $maxPersonalBorrows = 3;
+        $teachers = Teacher::whereNull('deleted_at')
+            ->withCount([
+                'activeBorrows as active_personal_borrows_count' => function ($q) {
+                    $q->where(function ($qq) {
+                        $qq->whereNull('origin')->orWhere('origin', 'personal');
+                    });
+                },
+            ])
+            ->orderBy('name')
+            ->get();
         // Filter books: only include those with available copies AND at least one non-lost control number
         $books = Book::all()
             ->filter(function($book) {
@@ -38,7 +48,7 @@ class TeacherBorrowController extends Controller
                 return $book->available_copies > 0 && !empty($availableCtrls);
             });
         $users = collect(); // empty for student form
-        return view('borrow.create', compact('settings', 'teachers', 'books', 'users'));
+        return view('borrow.create', compact('settings', 'teachers', 'books', 'users', 'maxPersonalBorrows'));
     }
 
     public function store(Request $request)
@@ -54,6 +64,23 @@ class TeacherBorrowController extends Controller
         $teacher = Teacher::find($request->user_id);
         if (!$teacher) {
             return back()->with('error', 'Teacher not found.');
+        }
+
+        $maxPersonalBorrows = 3;
+        $activePersonalBorrowCount = Borrow::where('user_id', $request->user_id)
+            ->where('role', 'teacher')
+            ->where(function ($q) {
+                $q->whereNull('origin')->orWhere('origin', 'personal');
+            })
+            ->whereNull('returned_at')
+            ->count();
+
+        if ($activePersonalBorrowCount >= $maxPersonalBorrows) {
+            return back()->with('error', "You can only have {$maxPersonalBorrows} active personal book borrows at a time. Please return some books first.");
+        }
+
+        if ($activePersonalBorrowCount + count($request->book_ids) > $maxPersonalBorrows) {
+            return back()->with('error', 'You can only borrow ' . ($maxPersonalBorrows - $activePersonalBorrowCount) . ' more personal book(s). Currently borrowed: ' . $activePersonalBorrowCount);
         }
 
         $borrowDate = Carbon::parse($request->borrowed_at);
@@ -148,8 +175,8 @@ class TeacherBorrowController extends Controller
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $dueDate = $borrow->due_date ? \Carbon\Carbon::parse($borrow->due_date) : null;
-        $today = \Carbon\Carbon::now();
+        $dueDate = $borrow->due_date ? Carbon::parse($borrow->due_date) : null;
+        $today = Carbon::now();
         $computedRemark = 'No Remarks';
         if ($dueDate && $today->gt($dueDate)) {
             $overdueDays = (int) ceil($today->diffInDays($dueDate));
@@ -209,7 +236,7 @@ class TeacherBorrowController extends Controller
     private function determineReturnStatus($remark, $dueDate = null, $today = null)
     {
         if (!$today) {
-            $today = \Carbon\Carbon::now();
+            $today = Carbon::now();
         }
 
         // Check for specific remarks that map to statuses

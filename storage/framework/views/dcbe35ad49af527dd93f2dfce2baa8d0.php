@@ -7,7 +7,7 @@
     </style>
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
-            <h4 class="mb-1">Borrow Distributed Books</h4>
+            <h4 class="mb-1">Borrow for Distribution</h4>
             <p class="text-muted mb-0">Issue distribution books to teachers</p>
         </div>
     </div>
@@ -31,9 +31,25 @@
                             <select id="student_select_dist" name="user_id" class="form-select" required>
                                 <option value="" selected disabled>Select teacher...</option>
                                 <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                    <option value="<?php echo e($user->_id ?? $user->id); ?>"><?php echo e($user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))); ?></option>
+                                    <?php
+                                        $active = (int) ($user->active_distribution_borrows_count ?? 0);
+                                        $limit = $maxDistributionBorrows ?? null;
+                                        $atLimit = $limit !== null ? ($active >= (int) $limit) : false;
+                                    ?>
+                                    <option value="<?php echo e($user->_id ?? $user->id); ?>" <?php if($atLimit): ?> disabled <?php endif; ?>>
+                                        <?php echo e($user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))); ?>
+
+                                        <?php if($active > 0): ?>
+                                            (<?php echo e($active); ?> active distribution)
+                                        <?php endif; ?>
+                                    </option>
                                 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                             </select>
+                            <?php if(($maxDistributionBorrows ?? null) !== null): ?>
+                                <div class="form-text text-muted">Borrowers with <?php echo e($maxDistributionBorrows); ?> active distribution borrows are disabled until they return a book.</div>
+                            <?php else: ?>
+                                <div class="form-text text-muted">Distribution borrowing does not affect personal borrowing limits.</div>
+                            <?php endif; ?>
                         </div>
 
                         <div class="row">

@@ -31,4 +31,9 @@ class Teacher extends Model
         return $this->hasMany(Borrow::class, 'user_id', 'id')
             ->where('role', 'teacher');
     }
+
+    public function activeBorrows()
+    {
+        return $this->borrows()->whereNull('returned_at');
+    }
 }

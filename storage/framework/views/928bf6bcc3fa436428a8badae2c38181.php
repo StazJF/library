@@ -95,7 +95,15 @@
                         <td><?php echo e($item->email ?? 'N/A'); ?></td>
                         <td><?php echo e(ucfirst($item->role ?? 'N/A')); ?></td>
                     <?php endif; ?>
-                    <td><?php echo e($item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A'); ?></td>
+                    <td>
+                        <?php if($type === 'book'): ?>
+                            <?php echo e($item->created_at ? $item->created_at->format('M d, Y H:i') : 'N/A'); ?>
+
+                        <?php else: ?>
+                            <?php echo e($item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A'); ?>
+
+                        <?php endif; ?>
+                    </td>
                     <td class="d-flex gap-1">
                         <!-- Restore Button -->
                         <form action="<?php echo e(route('utilities.restore', [$type, $item->id ?? $item->id])); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this <?php echo e($type); ?>?');">
@@ -226,5 +234,4 @@
         No deleted <?php echo e($type); ?>s found.
     </div>
 <?php endif; ?>
-
 <?php /**PATH C:\Users\user\Herd\library\resources\views/utilities/archive-table.blade.php ENDPATH**/ ?>

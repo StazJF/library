@@ -9,7 +9,7 @@
     </style>
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
-            <h4 class="mb-1">Borrow Distributed Books</h4>
+            <h4 class="mb-1">Borrow for Distribution</h4>
             <p class="text-muted mb-0">Issue distribution books to teachers</p>
         </div>
     </div>
@@ -33,9 +33,24 @@
                             <select id="student_select_dist" name="user_id" class="form-select" required>
                                 <option value="" selected disabled>Select teacher...</option>
                                 @foreach($users as $user)
-                                    <option value="{{ $user->_id ?? $user->id }}">{{ $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) }}</option>
+                                    @php
+                                        $active = (int) ($user->active_distribution_borrows_count ?? 0);
+                                        $limit = $maxDistributionBorrows ?? null;
+                                        $atLimit = $limit !== null ? ($active >= (int) $limit) : false;
+                                    @endphp
+                                    <option value="{{ $user->_id ?? $user->id }}" @if($atLimit) disabled @endif>
+                                        {{ $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) }}
+                                        @if($active > 0)
+                                            ({{ $active }} active distribution)
+                                        @endif
+                                    </option>
                                 @endforeach
                             </select>
+                            @if(($maxDistributionBorrows ?? null) !== null)
+                                <div class="form-text text-muted">Borrowers with {{ $maxDistributionBorrows }} active distribution borrows are disabled until they return a book.</div>
+                            @else
+                                <div class="form-text text-muted">Distribution borrowing does not affect personal borrowing limits.</div>
+                            @endif
                         </div>
 
                         <div class="row">

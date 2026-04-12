@@ -95,7 +95,13 @@
                         <td>{{ $item->email ?? 'N/A' }}</td>
                         <td>{{ ucfirst($item->role ?? 'N/A') }}</td>
                     @endif
-                    <td>{{ $item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A' }}</td>
+                    <td>
+                        @if($type === 'book')
+                            {{ $item->created_at ? $item->created_at->format('M d, Y H:i') : 'N/A' }}
+                        @else
+                            {{ $item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A' }}
+                        @endif
+                    </td>
                     <td class="d-flex gap-1">
                         <!-- Restore Button -->
                         <form action="{{ route('utilities.restore', [$type, $item->id ?? $item->id]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this {{ $type }}?');">
@@ -225,4 +231,3 @@
         No deleted {{ $type }}s found.
     </div>
 @endif
-

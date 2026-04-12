@@ -34,5 +34,10 @@ class User extends Authenticatable
             });
     }
 
+    public function activeBorrows()
+    {
+        return $this->borrows()->whereNull('returned_at');
+    }
+
     protected $dates = ['deleted_at'];
 }

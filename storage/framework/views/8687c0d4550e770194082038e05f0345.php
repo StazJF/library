@@ -670,11 +670,17 @@
         <?php
             // Get the quantity of unreturned borrows with same user, book, and date
             $borrowDate = $borrow->borrowed_at ? \Carbon\Carbon::parse($borrow->borrowed_at)->format('Y-m-d') : 'unknown';
-            $similarBorrows = collect($allBorrows)->filter(function($b) use ($borrow, $borrowDate) {
+            $borrowOrigin = ($borrow->origin ?? '') === 'distribution' ? 'distribution' : 'personal';
+            $isTeacherBorrow = ($borrow->role ?? '') === 'teacher';
+            $similarBorrows = collect($allBorrows)->filter(function($b) use ($borrow, $borrowDate, $borrowOrigin, $isTeacherBorrow) {
                 $bDate = $b->borrowed_at ? \Carbon\Carbon::parse($b->borrowed_at)->format('Y-m-d') : 'unknown';
+                $bOrigin = ($b->origin ?? '') === 'distribution' ? 'distribution' : 'personal';
+                $isTeacherLocal = ($b->role ?? '') === 'teacher';
                 return $b->user_id === $borrow->user_id 
                     && $b->book_id === $borrow->book_id 
                     && $bDate === $borrowDate
+                    && $isTeacherLocal === $isTeacherBorrow
+                    && $bOrigin === $borrowOrigin
                     && is_null($b->returned_at);
             });
             $quantity = $similarBorrows->count();

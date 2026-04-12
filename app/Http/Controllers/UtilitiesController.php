@@ -4,11 +4,14 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Book;
+use App\Models\BookArchive;
+use App\Models\BookCopy;
 use App\Models\User;
 use App\Models\SystemUser;
 use App\Models\Teacher;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class UtilitiesController extends Controller
 {
@@ -125,6 +128,10 @@ class UtilitiesController extends Controller
     // Restore single item
     public function restore($model, $id)
     {
+        if (strtolower($model) === 'book') {
+            return $this->restoreBookArchive($id);
+        }
+
         $class = $this->getModel($model);
         $item = $class::onlyTrashed()->find($id);
 
@@ -151,6 +158,10 @@ class UtilitiesController extends Controller
     // Restore all
     public function restoreAll($model)
     {
+        if (strtolower($model) === 'book') {
+            return $this->restoreAllBookArchives();
+        }
+
         $class = $this->getModel($model);
         $items = $class::onlyTrashed()->get();
 
@@ -175,6 +186,10 @@ class UtilitiesController extends Controller
     // Delete permanently (single)
     public function delete($model, $id)
     {
+        if (strtolower($model) === 'book') {
+            return $this->deleteBookArchive($id);
+        }
+
         $class = $this->getModel($model);
         $item = $class::onlyTrashed()->find($id);
 
@@ -201,6 +216,10 @@ class UtilitiesController extends Controller
     // Delete all
     public function deleteAll($model)
     {
+        if (strtolower($model) === 'book') {
+            return $this->deleteAllBookArchives();
+        }
+
         $class = $this->getModel($model);
         $items = $class::onlyTrashed()->get();
 
@@ -266,6 +285,192 @@ class UtilitiesController extends Controller
         return redirect()->route('utilities.backups')->with('success', 'Backup created successfully.');
     }
 
+    // Book archive actions
+    private function restoreBookArchive($id)
+    {
+        $archive = BookArchive::query()->find($id);
+        if (!$archive) {
+            return back()->with('error', 'Item not found.');
+        }
+
+        $controlNumber = trim((string) ($archive->ctrl_number ?? ''));
+        if ($controlNumber === '') {
+            return back()->with('error', 'Cannot restore: missing control number.');
+        }
+
+        if (BookCopy::query()->where('control_number', $controlNumber)->exists()) {
+            return back()->with('error', "Cannot restore: control number '{$controlNumber}' already exists.");
+        }
+
+        $isbn = trim((string) ($archive->isbn ?? ''));
+        if ($isbn === '') {
+            return back()->with('error', 'Cannot restore: missing ISBN.');
+        }
+
+        $book = Book::withTrashed()->where('isbn', $isbn)->first();
+        if (!$book) {
+            return back()->with('error', "Cannot restore: no matching book found for ISBN '{$isbn}'.");
+        }
+
+        try {
+            DB::transaction(function () use ($book, $archive, $controlNumber) {
+                if (method_exists($book, 'trashed') && $book->trashed()) {
+                    $book->restore();
+                }
+
+                $book->copies()->create([
+                    'control_number' => $controlNumber,
+                    'acquisition_year' => $archive->year,
+                    'status' => 'available',
+                    'condition' => $archive->condition,
+                    'is_lost_damaged' => false,
+                ]);
+
+                $newCopiesCount = $book->copies()->count();
+                $newAvailableCount = $book->copies()->available()->count();
+                $book->update([
+                    'copies' => $newCopiesCount,
+                    'available_copies' => $newAvailableCount,
+                    'status' => $newAvailableCount > 0 ? 'available' : 'borrowed',
+                ]);
+
+                $details = $this->getItemDetails('book', $archive);
+                ActivityLog::create([
+                    'user_id' => Auth::id(),
+                    'action' => 'Restored Book Copy',
+                    'target_type' => 'book',
+                    'target_id' => $archive->id,
+                    'details' => $details,
+                ]);
+
+                $archive->delete();
+            });
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Failed to restore archived book copy.');
+        }
+
+        return back()->with('success', 'Book copy restored successfully.');
+    }
+
+    private function deleteBookArchive($id)
+    {
+        $archive = BookArchive::query()->find($id);
+        if (!$archive) {
+            return back()->with('error', 'Item not found.');
+        }
+
+        $details = $this->getItemDetails('book', $archive);
+        $archiveId = $archive->id;
+        $archive->delete();
+
+        ActivityLog::create([
+            'user_id' => Auth::id(),
+            'action' => 'Permanently Deleted Book Archive',
+            'target_type' => 'book',
+            'target_id' => $archiveId,
+            'details' => $details,
+        ]);
+
+        return back()->with('success', 'Archived book copy deleted permanently.');
+    }
+
+    private function restoreAllBookArchives()
+    {
+        $archives = BookArchive::query()->latest()->get();
+        $restored = 0;
+        $failed = 0;
+
+        foreach ($archives as $archive) {
+            try {
+                $controlNumber = trim((string) ($archive->ctrl_number ?? ''));
+                $isbn = trim((string) ($archive->isbn ?? ''));
+                if ($controlNumber === '' || $isbn === '') {
+                    $failed++;
+                    continue;
+                }
+
+                if (BookCopy::query()->where('control_number', $controlNumber)->exists()) {
+                    $failed++;
+                    continue;
+                }
+
+                $book = Book::withTrashed()->where('isbn', $isbn)->first();
+                if (!$book) {
+                    $failed++;
+                    continue;
+                }
+
+                DB::transaction(function () use ($book, $archive, $controlNumber) {
+                    if (method_exists($book, 'trashed') && $book->trashed()) {
+                        $book->restore();
+                    }
+
+                    $book->copies()->create([
+                        'control_number' => $controlNumber,
+                        'acquisition_year' => $archive->year,
+                        'status' => 'available',
+                        'condition' => $archive->condition,
+                        'is_lost_damaged' => false,
+                    ]);
+
+                    $newCopiesCount = $book->copies()->count();
+                    $newAvailableCount = $book->copies()->available()->count();
+                    $book->update([
+                        'copies' => $newCopiesCount,
+                        'available_copies' => $newAvailableCount,
+                        'status' => $newAvailableCount > 0 ? 'available' : 'borrowed',
+                    ]);
+
+                    $details = $this->getItemDetails('book', $archive);
+                    ActivityLog::create([
+                        'user_id' => Auth::id(),
+                        'action' => 'Restored Book Copy',
+                        'target_type' => 'book',
+                        'target_id' => $archive->id,
+                        'details' => $details,
+                    ]);
+
+                    $archive->delete();
+                });
+
+                $restored++;
+            } catch (\Throwable $e) {
+                $failed++;
+            }
+        }
+
+        if ($restored === 0 && $failed > 0) {
+            return back()->with('error', "No book copies restored. Failed: {$failed}.");
+        }
+
+        if ($failed > 0) {
+            return back()->with('success', "Restored {$restored} book copy/copies. Failed: {$failed}.");
+        }
+
+        return back()->with('success', "All book copies restored successfully ({$restored}).");
+    }
+
+    private function deleteAllBookArchives()
+    {
+        $archives = BookArchive::query()->latest()->get();
+
+        foreach ($archives as $archive) {
+            $details = $this->getItemDetails('book', $archive);
+            $archiveId = $archive->id;
+            $archive->delete();
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'Permanently Deleted Book Archive',
+                'target_type' => 'book',
+                'target_id' => $archiveId,
+                'details' => $details,
+            ]);
+        }
+
+        return back()->with('success', 'All archived book copies deleted permanently.');
+    }
+
     // Map string → Model
     private function getModel($model)
     {
@@ -285,7 +490,12 @@ class UtilitiesController extends Controller
         $model = strtolower($model);
 
         if ($model === 'book') {
-            return "Book: '{$item->title}' by {$item->author} (ISBN: {$item->isbn})";
+            $title = $item->title ?? 'N/A';
+            $author = $item->author ?? 'N/A';
+            $isbn = $item->isbn ?? 'N/A';
+            $ctrl = $item->ctrl_number ?? null;
+            $ctrlPart = $ctrl ? " (Ctrl: {$ctrl})" : '';
+            return "Book: '{$title}' by {$author} (ISBN: {$isbn}){$ctrlPart}";
         } elseif ($model === 'student') {
             return "Student: {$item->first_name} {$item->last_name} (Email: {$item->email})";
         } elseif ($model === 'teacher') {
@@ -297,4 +507,3 @@ class UtilitiesController extends Controller
         return "Unknown item";
     }
 }
-

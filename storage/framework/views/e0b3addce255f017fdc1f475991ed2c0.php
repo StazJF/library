@@ -35,12 +35,39 @@
             .select2-container--default .select2-selection--single .select2-selection__placeholder { color: #64748b; }
             .select2-container { width: 100% !important; }
             .btn-add-book { min-width: 110px; white-space: normal; }
+            /* Larger dropdowns for book selection */
+            .select2-large-user .select2-selection--single,
+            .select2-large-book .select2-selection--single,
+            .select2-large-ctrl .select2-selection--single {
+                height: 3.5rem !important;
+                padding: 0.65rem 1.2rem !important;
+                font-size: 1.1rem !important;
+            }
+            .select2-large-user .select2-selection--single .select2-selection__rendered,
+            .select2-large-book .select2-selection--single .select2-selection__rendered,
+            .select2-large-ctrl .select2-selection--single .select2-selection__rendered {
+                line-height: 2.2 !important;
+                padding-left: 0 !important;
+                color: #0f172a;
+            }
+            .select2-large-user .select2-selection__arrow,
+            .select2-large-book .select2-selection__arrow,
+            .select2-large-ctrl .select2-selection__arrow {
+                height: 3.5rem !important;
+            }
+            /* Larger confirm button */
+            #confirmBtn {
+                padding: 1rem 2rem !important;
+                font-size: 1.15rem !important;
+                font-weight: 400;
+                min-height: 3rem;
+            }
             @media (max-width: 767px) { .container.py-5 { padding-left: 1rem; padding-right:1rem; } .card-body { padding: .85rem !important; } }
         </style>
         
         <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
             <div>
-                <h4 class="mb-1 not-odd:">Book Borrowing</h4>
+                <h3 class="mb-1">Book Borrowing</h3>
                 <p class="text-muted mb-0">Issue books to students and teachers</p>
             </div>
             <div class="d-flex align-items-center">
@@ -119,17 +146,28 @@
                                     <select id="student_select" class="form-select">
                                         <option value="" selected disabled>Select student...</option>
                                         <?php $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                            <?php
+                                                $active = (int) ($user->active_personal_borrows_count ?? 0);
+                                                $limit = (int) ($maxPersonalBorrows ?? 3);
+                                                $atLimit = $active >= $limit;
+                                            ?>
                                             <option value="<?php echo e($user->_id ?? $user->id); ?>"
+                                                            <?php if($atLimit): ?> disabled <?php endif; ?>
                                                             data-first="<?php echo e($user->first_name ?? ''); ?>"
                                                             data-last="<?php echo e($user->last_name ?? ''); ?>"
                                                             data-lrn="<?php echo e($user->lrn ?? ''); ?>"
                                                             data-grade_section="<?php echo e($user->grade_section ?? $user->year_level ?? ''); ?>"
-                                                            data-address="<?php echo e($user->address ?? $user->course ?? ''); ?>">
+                                                            data-address="<?php echo e($user->address ?? $user->course ?? ''); ?>"
+                                                            data-active-borrows="<?php echo e($active); ?>">
                                                 <?php echo e(trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))); ?>
 
+                                                <?php if($active > 0): ?>
+                                                    (<?php echo e($active); ?>/<?php echo e($limit); ?> active)
+                                                <?php endif; ?>
                                             </option>
                                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
+                                    <div class="form-text text-muted">Borrowers with <?php echo e($maxPersonalBorrows ?? 3); ?> active personal borrows are disabled until they return a book.</div>
                                 </div>
 
                                 <div class="row g-3 mb-3">
@@ -184,12 +222,21 @@
                                     <select id="teacher_select" class="form-select">
                                         <option value="" selected disabled>Select teacher...</option>
                                         <?php $__currentLoopData = $teachers; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                                            <option value="<?php echo e($user->_id ?? $user->id); ?>">
+                                            <?php
+                                                $active = (int) ($user->active_personal_borrows_count ?? 0);
+                                                $limit = (int) ($maxPersonalBorrows ?? 3);
+                                                $atLimit = $active >= $limit;
+                                            ?>
+                                            <option value="<?php echo e($user->_id ?? $user->id); ?>" <?php if($atLimit): ?> disabled <?php endif; ?> data-active-borrows="<?php echo e($active); ?>">
                                                 <?php echo e($user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''))); ?>
 
+                                                <?php if($active > 0): ?>
+                                                    (<?php echo e($active); ?>/<?php echo e($limit); ?> active)
+                                                <?php endif; ?>
                                             </option>
                                         <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                                     </select>
+                                    <div class="form-text text-muted">Borrowers with <?php echo e($maxPersonalBorrows ?? 3); ?> active personal borrows are disabled until they return a book.</div>
                                 </div>
 
                                 <div class="row g-3">
@@ -323,6 +370,10 @@
                     $('#student_select').select2({ width: '100%', placeholder: 'Select student...' });
                     $('#teacher_select').select2({ width: '100%', placeholder: 'Select teacher...' });
 
+                    // Add classes for larger styling
+                    $('#student_select').data('select2').$container.addClass('select2-large-user');
+                    $('#teacher_select').data('select2').$container.addClass('select2-large-user');
+
                     const bookMatcher = function (params, data) {
                         const term = $.trim(params.term || '');
                         if (term === '') return data;
@@ -362,6 +413,10 @@
                         matcher: ctrlMatcher,
                         minimumResultsForSearch: 0,
                     });
+
+                    // Add classes for larger styling
+                    $('#book_select').data('select2').$container.addClass('select2-large-book');
+                    $('#controlNumberSelect').data('select2').$container.addClass('select2-large-ctrl');
 
                     // Restrict Ctrl# search input only (do not affect other Select2 inputs)
                     $('#controlNumberSelect').on('select2:open', function () {

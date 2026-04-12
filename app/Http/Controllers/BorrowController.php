@@ -62,9 +62,26 @@ class BorrowController extends Controller
     {
         $users = User::where(function(\Illuminate\Database\Eloquent\Builder$q) {
             $q->whereNull('role')->orWhere('role', '!=', 'teacher');
-        })->whereNull('deleted_at')->get();
+        })
+            ->whereNull('deleted_at')
+            ->withCount([
+                'activeBorrows as active_personal_borrows_count' => function ($q) {
+                    $q->where(function ($qq) {
+                        $qq->whereNull('origin')->orWhere('origin', 'personal');
+                    });
+                },
+            ])
+            ->get();
         // teachers are stored in separate model/table
-        $teachers = Teacher::whereNull('deleted_at')->get();
+        $teachers = Teacher::whereNull('deleted_at')
+            ->withCount([
+                'activeBorrows as active_personal_borrows_count' => function ($q) {
+                    $q->where(function ($qq) {
+                        $qq->whereNull('origin')->orWhere('origin', 'personal');
+                    });
+                },
+            ])
+            ->get();
 
         // If a user is selected, filter books they haven't borrowed yet
         $selectedUserId = request('user_id');
@@ -95,15 +112,23 @@ class BorrowController extends Controller
         }
 
         $settings = DB::table('penalty_settings')->first();
+        $maxPersonalBorrows = 3;
 
-        return view('borrow.create', compact('books', 'users', 'teachers', 'settings'));
+        return view('borrow.create', compact('books', 'users', 'teachers', 'settings', 'maxPersonalBorrows'));
     }
 
     // Show form to borrow a distributed book (now uses inventory books)
     public function createForDistribute()
     {
         // Only pass teachers from the separate Teacher collection
-        $users = Teacher::whereNull('deleted_at')->orderBy('name', 'asc')->get();
+        $users = Teacher::whereNull('deleted_at')
+            ->withCount([
+                'activeBorrows as active_distribution_borrows_count' => function ($q) {
+                    $q->where('origin', 'distribution');
+                },
+            ])
+            ->orderBy('name', 'asc')
+            ->get();
 
         // use regular books for distribution; show only books with available copies (not all lost)
         $books = Book::all()
@@ -114,8 +139,9 @@ class BorrowController extends Controller
             });
 
         $settings = DB::table('penalty_settings')->first();
+        $maxDistributionBorrows = null;
 
-        return view('borrow.distribute', compact('books','users','settings'));
+        return view('borrow.distribute', compact('books','users','settings', 'maxDistributionBorrows'));
     }
 
     // Store borrow for distributed books (inventory-backed)
@@ -139,6 +165,26 @@ class BorrowController extends Controller
         $teacher = Teacher::find($userId);
         if (!$teacher) {
             return redirect()->back()->with('error', 'Teacher not found.');
+        }
+
+        // Distribution borrowing has a separate limit from personal borrowing.
+        // Set to null for unlimited distribution borrows.
+        $maxDistributionBorrows = null;
+
+        if ($maxDistributionBorrows !== null) {
+            $activeBorrowCount = Borrow::where('user_id', $userId)
+                ->where('role', 'teacher')
+                ->where('origin', 'distribution')
+                ->whereNull('returned_at')
+                ->count();
+
+            if ($activeBorrowCount >= $maxDistributionBorrows) {
+                return redirect()->back()->with('error', "This teacher already has {$maxDistributionBorrows} active distribution borrows. Please return some books first.");
+            }
+
+            if ($activeBorrowCount + count($bookIds) > $maxDistributionBorrows) {
+                return redirect()->back()->with('error', 'This teacher can only borrow ' . ($maxDistributionBorrows - $activeBorrowCount) . ' more distribution book(s). Currently borrowed: ' . $activeBorrowCount);
+            }
         }
 
         $borrowDate = Carbon::parse($request->input('borrowed_at'));
@@ -259,6 +305,9 @@ class BorrowController extends Controller
         // Prevent borrowing if they already have the max active borrows
         $activeBorrowCount = Borrow::where('user_id', $userId)
             ->where('role', $borrowType)
+            ->where(function ($q) {
+                $q->whereNull('origin')->orWhere('origin', 'personal');
+            })
             ->whereNull('returned_at')
             ->count();
         
@@ -407,6 +456,24 @@ class BorrowController extends Controller
         $borrowIds = $request->input('borrow_ids', []);
         if (empty($borrowIds)) {
             $borrowIds = [$borrowId];
+        }
+
+        // Prevent mixing personal vs distribution returns in a single request.
+        $baseBorrow = Borrow::find($borrowId);
+        if ($baseBorrow) {
+            $expectedOrigin = ($baseBorrow->origin ?? '') === 'distribution' ? 'distribution' : 'personal';
+            $mismatched = Borrow::query()
+                ->whereIn('id', $borrowIds)
+                ->whereNull('returned_at')
+                ->get(['id', 'origin'])
+                ->first(function ($b) use ($expectedOrigin) {
+                    $origin = ($b->origin ?? '') === 'distribution' ? 'distribution' : 'personal';
+                    return $origin !== $expectedOrigin;
+                });
+
+            if ($mismatched) {
+                return redirect()->back()->with('error', 'Mixed Personal and Distribution borrows detected. Please return Personal and Distribution borrows separately.');
+            }
         }
 
         // Get quantity to return (default: all of them)
