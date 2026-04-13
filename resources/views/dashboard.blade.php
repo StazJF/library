@@ -64,7 +64,7 @@
     <!-- Row 1: Students + Chart (shadcn style) -->
     <div class="d-flex gap-4 mb-4" style="flex-wrap:wrap;">
         <!-- Students with Unreturned Books -->
-        <div class="flex-fill min-w-0" style="min-width:150px;">
+        <div class="flex-fill min-w-0" style="min-width:50px;">
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 1px 2px 0 #0001;display:flex;flex-direction:column;height:100%;">
                 <div style="border-bottom:1px solid #e5e7eb;padding:0.75rem 1.25rem;font-weight:600;font-size:1.05rem;">Students with Unreturned Book/s</div>
                 <div style="padding:1rem;max-height:400px;overflow-y:auto;">
