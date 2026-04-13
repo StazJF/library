@@ -18,11 +18,24 @@ class DashboardController extends Controller
         $totalUsers = User::count();
         $totalBorrows = Borrow::count();
         // Borrows with due date within 3 days and not returned
-        $nearDueBorrows = Borrow::whereNull('returned_at')
+        // Match the Returns page behavior: teacher borrows are `role = teacher`, everything else is student/legacy.
+        $nearDueStudentBorrows = Borrow::whereNull('returned_at')
             ->whereDate('due_date', '>=', now())
             ->whereDate('due_date', '<=', now()->addDays(3))
-            ->with(['user', 'book'])
+            ->where(function ($q) {
+                $q->whereNull('role')->orWhere('role', '!=', 'teacher');
+            })
+            ->with(['book', 'student'])
             ->get();
+
+        $nearDueTeacherBorrows = Borrow::whereNull('returned_at')
+            ->whereDate('due_date', '>=', now())
+            ->whereDate('due_date', '<=', now()->addDays(3))
+            ->where('role', 'teacher')
+            ->with(['book', 'teacher'])
+            ->get();
+
+        $nearDueBorrows = $nearDueStudentBorrows->concat($nearDueTeacherBorrows);
         // Students with unreturned books (paginated)
         $studentsWithUnreturned = User::whereHas('borrows', function ($q) {
                 $q->whereNull('returned_at');
@@ -167,7 +180,9 @@ class DashboardController extends Controller
             'lowestMonthActivity',
             'peakMonthIndex',
             'monthlyStats',
-            'nearDueBorrows'
+            'nearDueBorrows',
+            'nearDueStudentBorrows',
+            'nearDueTeacherBorrows'
         ));
     }
 

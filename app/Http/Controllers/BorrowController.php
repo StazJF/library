@@ -17,6 +17,30 @@ use App\Models\BookCopy;
 
 class BorrowController extends Controller
 {
+    private function parseBorrowerFromRequest(string $rawUserId, ?string $rawBorrowType): array
+    {
+        $rawBorrowType = $rawBorrowType ? strtolower(trim($rawBorrowType)) : null;
+        $rawUserId = trim($rawUserId);
+
+        // Preferred format: "teacher:123" or "student:456"
+        if (str_contains($rawUserId, ':')) {
+            [$prefix, $idPart] = explode(':', $rawUserId, 2);
+            $prefix = strtolower(trim($prefix));
+            $idPart = trim($idPart);
+
+            if (in_array($prefix, ['teacher', 'student'], true) && $idPart !== '') {
+                $borrowType = $prefix;
+                $userId = ctype_digit($idPart) ? (int) $idPart : $idPart;
+                return [$borrowType, $userId];
+            }
+        }
+
+        // Backwards compatible fallback
+        $borrowType = in_array($rawBorrowType, ['student', 'teacher'], true) ? $rawBorrowType : 'student';
+        $userId = ctype_digit($rawUserId) ? (int) $rawUserId : $rawUserId;
+        return [$borrowType, $userId];
+    }
+
     private function normalizeCopyNumber(?string $value): ?string
     {
         $value = trim((string) $value);
@@ -283,19 +307,16 @@ class BorrowController extends Controller
             'borrow_type'  => 'nullable|in:student,teacher',
         ]);
 
-        $userId = $request->input('user_id');
-        $borrowType = $request->input('borrow_type') ?? 'student'; // default to student
+        [$borrowType, $userId] = $this->parseBorrowerFromRequest(
+            (string) $request->input('user_id'),
+            $request->input('borrow_type')
+        );
         $bookIds = $request->input('book_ids');
         $copyNumbers = $request->input('copy_numbers') ?? [];
 
         // Determine if user is a student or teacher
-        $user = User::find($userId);
-        if (!$user) {
-            $user = Teacher::find($userId);
-        }
-        
-        // Use the provided borrow_type from the form
         $isTeacher = ($borrowType === 'teacher');
+        $user = $isTeacher ? Teacher::find($userId) : User::find($userId);
         $maxBooks = $isTeacher ? 3 : 3;
 
         if (!$user) {

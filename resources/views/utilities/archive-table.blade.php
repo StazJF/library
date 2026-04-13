@@ -1,3 +1,23 @@
+@php
+    $labels = [
+        'book' => ['singular' => 'Book', 'plural' => 'Books'],
+        'book_copy' => ['singular' => 'Book Copy', 'plural' => 'Book Copies'],
+        'student' => ['singular' => 'Student', 'plural' => 'Students'],
+        'teacher' => ['singular' => 'Teacher', 'plural' => 'Teachers'],
+        'staff' => ['singular' => 'Staff', 'plural' => 'Staff'],
+    ];
+    $labelSingular = $labels[$type]['singular'] ?? ucfirst(str_replace('_', ' ', (string) $type));
+    $labelPlural = $labels[$type]['plural'] ?? ($labelSingular . 's');
+    $colspan = match($type) {
+        'book' => 8,
+        'book_copy' => 9,
+        'student' => 7,
+        'teacher' => 6,
+        'staff' => 5,
+        default => 7
+    };
+@endphp
+
 @if($items->count() > 0)
     <style>
         .archive-table table tr[data-href]:hover {
@@ -9,7 +29,7 @@
     {{-- Search Form for archive table --}}
     <form class="row g-2 mb-3" method="GET" action="{{ url()->current() }}">
         <div class="col-auto" style="flex:1 1 320px;">
-            <input type="search" name="q" class="form-control form-control-sm" placeholder="Search {{ $type }}s by keyword..." value="{{ request('q') }}">
+            <input type="search" name="q" class="form-control form-control-sm" placeholder="Search {{ $labelPlural }} by keyword..." value="{{ request('q') }}">
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-sm btn-primary">Search</button>
@@ -17,14 +37,14 @@
     </form>
 
     <div class="mb-3 d-flex flex-wrap gap-2">
-        <form action="{{ route('utilities.restoreAll', $type) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore all {{ $type }}s? This will restore all deleted records.');">
+        <form action="{{ route('utilities.restoreAll', $type) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore all {{ $labelPlural }}? This will restore all deleted records.');">
             @csrf
             @method('PATCH')
             <button type="submit" class="btn btn-success btn-sm d-flex align-items-center gap-1" style="border-radius:0.375rem;">
                 <i class="bi bi-arrow-clockwise"></i> <span>Restore All</span>
             </button>
         </form>
-        <form action="{{ route('utilities.deleteAll', $type) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete all {{ $type }}s? This cannot be undone.');">
+        <form action="{{ route('utilities.deleteAll', $type) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete all {{ $labelPlural }}? This cannot be undone.');">
             @csrf
             @method('DELETE')
             <button type="submit" class="btn btn-danger btn-sm d-flex align-items-center gap-1" style="border-radius:0.375rem;">
@@ -46,6 +66,14 @@
                     <th>ISBN</th>
                     <th>Ctrl #</th>
                     <th>Condition</th>
+                @elseif($type === 'book_copy')
+                    <th>Book</th>
+                    <th>Author</th>
+                    <th>ISBN</th>
+                    <th>Control #</th>
+                    <th>Year</th>
+                    <th>Condition</th>
+                    <th>Status</th>
                 @elseif($type === 'student')
                     <th>First Name</th>
                     <th>Last Name</th>
@@ -65,16 +93,32 @@
         </thead>
         <tbody>
             @foreach($items as $item)
-                <tr @if($type === 'book' && !empty($item->ctrl_number)) data-href="#" @endif>
+                <tr @if($type === 'book' && !empty($item->call_number)) data-href="#" @endif>
                     <td>
-                        <input type="checkbox" class="archive-checkbox" data-restore-url="{{ route('utilities.restore', [$type, $item->id ?? $item->id]) }}" data-delete-url="{{ route('utilities.delete', [$type, $item->id ?? $item->id]) }}" aria-label="Select {{ $type }}">
+                        <input type="checkbox" class="archive-checkbox" data-restore-url="{{ route('utilities.restore', [$type, $item->id ?? $item->id]) }}" data-delete-url="{{ route('utilities.delete', [$type, $item->id ?? $item->id]) }}" aria-label="Select {{ $labelSingular }}">
                     </td>
                     @if($type === 'book')
+                        @php
+                            $deletedCopiesForCtrl = $item->deletedCopies ?? collect();
+                            $ctrlBase = $item->call_number;
+                            if ((!$ctrlBase || trim((string) $ctrlBase) === '') && $deletedCopiesForCtrl->count() > 0) {
+                                $firstCtrl = (string) ($deletedCopiesForCtrl->first()->control_number ?? '');
+                                $ctrlBase = trim(explode('-', $firstCtrl, 2)[0] ?? '');
+                            }
+                        @endphp
                         <td>{{ $item->title ?? 'N/A' }}</td>
                         <td>{{ $item->author ?? 'N/A' }}</td>
                         <td>{{ $item->isbn ?? 'N/A' }}</td>
-                        <td>{{ $item->ctrl_number && $item->ctrl_number !== '' ? $item->ctrl_number : 'N/A' }}</td>
+                        <td>{{ $ctrlBase && $ctrlBase !== '' ? $ctrlBase : 'N/A' }}</td>
                         <td>{{ $item->condition && $item->condition !== '' ? $item->condition : 'N/A' }}</td>
+                    @elseif($type === 'book_copy')
+                        <td>{{ $item->book?->title ?? 'Unknown' }}</td>
+                        <td>{{ $item->book?->author ?? 'Unknown' }}</td>
+                        <td>{{ $item->book?->isbn ?? 'N/A' }}</td>
+                        <td>{{ $item->control_number ?? 'N/A' }}</td>
+                        <td>{{ $item->acquisition_year ?? 'N/A' }}</td>
+                        <td>{{ $item->condition ?? 'N/A' }}</td>
+                        <td>{{ $item->status ?? 'N/A' }}</td>
                     @elseif($type === 'student')
                         <td>{{ $item->first_name ?? 'N/A' }}</td>
                         <td>{{ $item->last_name ?? 'N/A' }}</td>
@@ -96,15 +140,11 @@
                         <td>{{ ucfirst($item->role ?? 'N/A') }}</td>
                     @endif
                     <td>
-                        @if($type === 'book')
-                            {{ $item->created_at ? $item->created_at->format('M d, Y H:i') : 'N/A' }}
-                        @else
-                            {{ $item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A' }}
-                        @endif
+                        {{ $item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A' }}
                     </td>
                     <td class="d-flex gap-1">
                         <!-- Restore Button -->
-                        <form action="{{ route('utilities.restore', [$type, $item->id ?? $item->id]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this {{ $type }}?');">
+                        <form action="{{ route('utilities.restore', [$type, $item->id ?? $item->id]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this {{ $labelSingular }}?');">
                             @csrf
                             @method('PATCH')
                             <button type="submit" class="btn btn-primary btn-sm" style="border-radius:0.375rem;" title="Restore">
@@ -113,7 +153,7 @@
                         </form>
 
                         <!-- Delete Permanently Button -->
-                        <form action="{{ route('utilities.delete', [$type, $item->id ?? $item->id]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete this {{ $type }}? This cannot be undone.');">
+                        <form action="{{ route('utilities.delete', [$type, $item->id ?? $item->id]) }}" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete this {{ $labelSingular }}? This cannot be undone.');">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn btn-danger btn-sm" style="border-radius:0.375rem;" title="Delete Permanently">
@@ -122,6 +162,54 @@
                         </form>
                     </td>
                 </tr>
+
+                @if($type === 'book')
+                    @php
+                        $deletedCopies = $item->deletedCopies ?? collect();
+                        $copiesId = 'deleted-copies-' . $item->id;
+                    @endphp
+                    <tr class="table-light">
+                        <td colspan="{{ $colspan }}">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-copies-btn" data-target="{{ $copiesId }}" style="border-radius:0.375rem; padding: 0.25rem 0.5rem;">
+                                    <i class="bi bi-chevron-right"></i>
+                                    <span class="fw-semibold">Deleted Book Copies ({{ $deletedCopies->count() }})</span>
+                                </button>
+                            </div>
+
+                            <div id="{{ $copiesId }}" class="deleted-copies-container" style="display: none; margin-top: 0.75rem;">
+                                @if($deletedCopies->count() > 0)
+                                    <div class="table-responsive mt-2">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:140px;">Control #</th>
+                                                    <th style="width:110px;">Year</th>
+                                                    <th style="width:140px;">Condition</th>
+                                                    <th style="width:110px;">Status</th>
+                                                    <th style="width:170px;">Deleted At</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach($deletedCopies as $copy)
+                                                    <tr>
+                                                        <td>{{ $copy->control_number ?? 'N/A' }}</td>
+                                                        <td>{{ $copy->acquisition_year ?? 'N/A' }}</td>
+                                                        <td>{{ $copy->condition ?? 'N/A' }}</td>
+                                                        <td>{{ $copy->status ?? 'N/A' }}</td>
+                                                        <td>{{ $copy->deleted_at ? $copy->deleted_at->format('M d, Y H:i') : 'N/A' }}</td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                @else
+                                    <div class="text-muted small mt-2">No deleted copies found for this book.</div>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                @endif
             @endforeach
         </tbody>
     </table>
@@ -132,6 +220,7 @@
         @php
             $pageName = match($type) {
                 'book' => 'book_page',
+                'book_copy' => 'book_copy_page',
                 'student' => 'student_page',
                 'teacher' => 'teacher_page',
                 'staff' => 'staff_page',
@@ -155,6 +244,24 @@
             const checkboxes = Array.from(container.querySelectorAll('input.archive-checkbox'));
             const restoreBtn = container.querySelector('#restoreSelectedBtn-{{ $type }}');
             const deleteBtn = container.querySelector('#deleteSelectedBtn-{{ $type }}');
+
+            // Toggle functionality for deleted book copies (scoped per table to avoid double-toggling)
+            container.addEventListener('click', function(e) {
+                const toggleBtn = e.target.closest('.toggle-copies-btn');
+                if (!toggleBtn) return;
+
+                e.preventDefault();
+                const targetId = toggleBtn.dataset.target;
+                const target = targetId ? document.getElementById(targetId) : null;
+                const icon = toggleBtn.querySelector('i');
+
+                if (!target || !icon) return;
+
+                const isHidden = target.style.display === 'none';
+                target.style.display = isHidden ? 'block' : 'none';
+                icon.classList.toggle('bi-chevron-right', !isHidden);
+                icon.classList.toggle('bi-chevron-down', isHidden);
+            });
 
             function updateBulkButtons(){
                 const checked = checkboxes.filter(cb => cb.checked);
@@ -228,6 +335,6 @@
     </div>
 @else
     <div class="alert alert-info rounded shadow-sm border">
-        No deleted {{ $type }}s found.
+        No deleted {{ $labelPlural }} found.
     </div>
 @endif

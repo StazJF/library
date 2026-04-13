@@ -39,7 +39,17 @@
     <div class="tab-content bg-white p-4 rounded shadow-sm border" id="archiveTabsContent" style="min-height:350px;">
         <!-- Books Tab -->
         <div class="tab-pane fade show active" id="books" role="tabpanel">
-            @include('utilities.archive-table', ['items' => $books, 'type' => 'book'])
+            <div class="mb-4">
+                <h5 class="fw-semibold mb-2">Deleted Books (Grouped)</h5>
+                <div class="text-muted small mb-2">Shows a grouped row only when the book is deleted and all its copies are deleted.</div>
+                @include('utilities.archive-table', ['items' => $books, 'type' => 'book'])
+            </div>
+
+            <div class="mt-4">
+                <h5 class="fw-semibold mb-2">Deleted Book Copies (Individual)</h5>
+                <div class="text-muted small mb-2">Shows individual deleted copies that are not part of a fully-deleted book group.</div>
+                @include('utilities.archive-table', ['items' => $bookCopies ?? collect(), 'type' => 'book_copy'])
+            </div>
         </div>
 
         <!-- Teachers Tab -->

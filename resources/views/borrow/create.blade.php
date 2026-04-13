@@ -151,7 +151,7 @@
                                                 $limit = (int) ($maxPersonalBorrows ?? 3);
                                                 $atLimit = $active >= $limit;
                                             @endphp
-                                            <option value="{{ $user->_id ?? $user->id }}"
+                                            <option value="student:{{ $user->_id ?? $user->id }}"
                                                             @if($atLimit) disabled @endif
                                                             data-first="{{ $user->first_name ?? '' }}"
                                                             data-last="{{ $user->last_name ?? '' }}"
@@ -226,7 +226,7 @@
                                                 $limit = (int) ($maxPersonalBorrows ?? 3);
                                                 $atLimit = $active >= $limit;
                                             @endphp
-                                            <option value="{{ $user->_id ?? $user->id }}" @if($atLimit) disabled @endif data-active-borrows="{{ $active }}">
+                                            <option value="teacher:{{ $user->_id ?? $user->id }}" @if($atLimit) disabled @endif data-active-borrows="{{ $active }}">
                                                 {{ $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) }}
                                                 @if($active > 0)
                                                     ({{ $active }}/{{ $limit }} active)

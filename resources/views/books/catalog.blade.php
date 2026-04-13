@@ -178,9 +178,16 @@
                                 } elseif ($base !== '') {
                                     $ctrlBase = $base;
                                 }
+                                $hasActiveBorrows = ($book->active_borrows_count ?? 0) > 0;
                             @endphp
                             <td>
-                                <input type="checkbox" class="form-check-input book-checkbox" data-book-id="{{ $book->id }}">
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input book-checkbox"
+                                    data-book-id="{{ $book->id }}"
+                                    {{ $hasActiveBorrows ? 'disabled' : '' }}
+                                    title="{{ $hasActiveBorrows ? 'Cannot delete: at least one copy is currently borrowed.' : '' }}"
+                                >
                             </td>
                             <td class="fw-semibold">{{ $ctrlBase }}</td>
                             <td>
@@ -247,10 +254,10 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     @if(Auth::user() && Auth::user()->role === 'admin')
-                                    <form action="{{ route('books.destroy', $book->id) }}" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this book?');">
+                                    <form action="{{ route('books.destroy', $book->id) }}" method="POST" class="d-inline" onsubmit="{{ $hasActiveBorrows ? 'return false;' : 'return confirm(\'Are you sure you want to delete this book?\');' }}">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ $hasActiveBorrows ? 'Cannot delete: at least one copy is currently borrowed.' : 'Delete' }}" {{ $hasActiveBorrows ? 'disabled' : '' }}>
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>

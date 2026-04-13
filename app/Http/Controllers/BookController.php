@@ -9,7 +9,6 @@ use App\Models\DistributedBook;
 use App\Models\ActivityLog;
 use App\Models\LostDamagedItem;
 use App\Models\LostDamagedItemHistory;
-use App\Models\BookArchive;
 use Illuminate\Http\Request;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Auth;
@@ -90,7 +89,7 @@ class BookController extends Controller
         
         // Auto-migrate JSON data to BookCopy records for books that need it
         foreach ($books as $book) {
-            if ($book->copies()->count() === 0 && !empty($book->control_numbers)) {
+            if ($book->copiesWithTrashed()->count() === 0 && !empty($book->control_numbers)) {
                 $book->migrateJsonToCopies();
                 $book->load('copies');
             }
@@ -122,7 +121,7 @@ class BookController extends Controller
 
         // Determine base control number (prefer normalized BookCopy data; JSON fields may be stale)
         $baseNumber = null;
-        $firstExistingCtrl = $book->copies()
+        $firstExistingCtrl = $book->copiesWithTrashed()
             ->whereNotNull('control_number')
             ->orderBy('control_number')
             ->value('control_number');
@@ -163,7 +162,7 @@ class BookController extends Controller
         }
 
         // Find the highest suffix used so far for this base (within this book)
-        $maxSuffix = $book->copies()
+        $maxSuffix = $book->copiesWithTrashed()
             ->where('control_number', 'like', $baseNumber . '-%')
             ->get()
             ->reduce(function ($max, $copy) use ($baseNumber) {
@@ -181,7 +180,7 @@ class BookController extends Controller
             $toCreate[] = $baseNumber . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
         }
 
-        $collisions = BookCopy::whereIn('control_number', $toCreate)->pluck('control_number')->toArray();
+        $collisions = BookCopy::withTrashed()->whereIn('control_number', $toCreate)->pluck('control_number')->toArray();
         if (!empty($collisions)) {
             return response()->json([
                 'success' => false,
@@ -252,7 +251,7 @@ class BookController extends Controller
 
         // Determine base control number (prefer normalized BookCopy data; JSON fields may be stale)
         $baseNumber = null;
-        $firstExistingCtrl = $book->copies()
+        $firstExistingCtrl = $book->copiesWithTrashed()
             ->whereNotNull('control_number')
             ->orderBy('control_number')
             ->value('control_number');
@@ -292,7 +291,7 @@ class BookController extends Controller
         }
 
         // Find the highest suffix used so far for this base (within this book)
-        $maxSuffix = $book->copies()
+        $maxSuffix = $book->copiesWithTrashed()
             ->where('control_number', 'like', $baseNumber . '-%')
             ->get()
             ->reduce(function ($max, $copy) use ($baseNumber) {
@@ -309,7 +308,7 @@ class BookController extends Controller
             $toCreate[] = $baseNumber . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
         }
 
-        $collisions = BookCopy::whereIn('control_number', $toCreate)->pluck('control_number')->toArray();
+        $collisions = BookCopy::withTrashed()->whereIn('control_number', $toCreate)->pluck('control_number')->toArray();
         if (!empty($collisions)) {
             return response()->json([
                 'success' => false,
@@ -392,18 +391,7 @@ class BookController extends Controller
             ], 409);
         }
 
-        // Archive the copy before deleting
-        BookArchive::create([
-            'title' => $book->title,
-            'author' => $book->author,
-            'isbn' => $book->isbn,
-            'publisher' => $book->publisher,
-            'year' => $bookCopy->acquisition_year,
-            'ctrl_number' => $bookCopy->control_number,
-            'condition' => $bookCopy->condition,
-        ]);
-
-        // Delete the copy
+        // Soft-delete the copy so it remains visible in the Archive module
         $bookCopy->delete();
 
         // Update book counts/status (keep integer fields in sync for legacy code)
@@ -420,7 +408,7 @@ class BookController extends Controller
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action'  => 'Deleted Copy from Book',
-            'details' => "Deleted copy {$ctrlForLog} from '{$book->title}' (Remaining: {$newCopiesCount}) and archived it.",
+            'details' => "Deleted copy {$ctrlForLog} from '{$book->title}' (Remaining: {$newCopiesCount}).",
         ]);
 
         return response()->json([
@@ -474,16 +462,6 @@ class BookController extends Controller
                 $skipped[] = $copy->control_number ?: "copy_id={$copy->id}";
                 continue;
             }
-
-            BookArchive::create([
-                'title' => $book->title,
-                'author' => $book->author,
-                'isbn' => $book->isbn,
-                'publisher' => $book->publisher,
-                'year' => $copy->acquisition_year,
-                'ctrl_number' => $copy->control_number,
-                'condition' => $copy->condition,
-            ]);
 
             $copy->delete();
             $deleted++;
@@ -650,13 +628,16 @@ class BookController extends Controller
 
         $books = $query
             ->with('copies')
+            ->withCount(['borrows as active_borrows_count' => function ($q) {
+                $q->whereNull('returned_at');
+            }])
             ->orderBy('title', 'asc')
             ->paginate(12)
             ->withQueryString();
 
         // Auto-migrate JSON data to BookCopy records for books that need it
         foreach ($books as $book) {
-            if ($book->copies()->count() === 0 && !empty($book->control_numbers)) {
+            if ($book->copiesWithTrashed()->count() === 0 && !empty($book->control_numbers)) {
                 $book->migrateJsonToCopies();
                 $book->load('copies');
             }
@@ -930,13 +911,13 @@ class BookController extends Controller
     public function show(Book $book)
     {
         // Auto-migrate JSON data to BookCopy records if needed
-        $bookCopyCount = $book->copies()->count();
+        $bookCopyCount = $book->copiesWithTrashed()->count();
         
         // If book has no BookCopy records but claims to have copies, try to migrate or create them
         if ($bookCopyCount === 0 && !empty($book->control_numbers)) {
             // Try to migrate from JSON
             $book->migrateJsonToCopies();
-            $bookCopyCount = $book->copies()->count();
+            $bookCopyCount = $book->copiesWithTrashed()->count();
         }
         
         // If still no BookCopy records but book.copies > 0, create placeholder records
@@ -953,7 +934,7 @@ class BookController extends Controller
                         'is_lost_damaged' => false,
                     ]);
                 }
-                $bookCopyCount = $book->copies()->count();
+                $bookCopyCount = $book->copiesWithTrashed()->count();
             } catch (\Exception $e) {
                 Log::error('Error creating placeholder BookCopy records', [
                     'book_id' => $book->id,
@@ -1130,7 +1111,7 @@ class BookController extends Controller
         }
 
         // Validate that control numbers don't already exist in BookCopy table
-        $existingControls = BookCopy::whereIn('control_number', $controlNumbers)->pluck('control_number')->toArray();
+        $existingControls = BookCopy::withTrashed()->whereIn('control_number', $controlNumbers)->pluck('control_number')->toArray();
         if (!empty($existingControls)) {
             return back()
                 ->withErrors(['copies' => 'Control number(s) ' . implode(', ', $existingControls) . ' already exist in the system.'])
@@ -1204,7 +1185,7 @@ class BookController extends Controller
     public function edit(Book $book)
     {
         // Auto-migrate JSON data to BookCopy records if needed
-        if ($book->copies()->count() === 0 && !empty($book->control_numbers)) {
+        if ($book->copiesWithTrashed()->count() === 0 && !empty($book->control_numbers)) {
             $book->migrateJsonToCopies();
         }
         
@@ -1283,7 +1264,7 @@ class BookController extends Controller
                 // Keep BookCopy.control_number base consistent with the book's call_number.
                 // This prevents UI/borrow modules from showing a different base than what's stored on the book.
                 if ($newBase !== '') {
-                    $copiesToRewrite = $book->copies()
+                    $copiesToRewrite = $book->copiesWithTrashed()
                         ->whereNotNull('control_number')
                         ->lockForUpdate()
                         ->get();
@@ -1310,7 +1291,7 @@ class BookController extends Controller
                         }
 
                         // Ensure we don't collide with other books (global unique constraint on book_copies.control_number).
-                        $collisions = BookCopy::where('book_id', '!=', $book->id)
+                        $collisions = BookCopy::withTrashed()->where('book_id', '!=', $book->id)
                             ->whereIn('control_number', $values)
                             ->pluck('control_number')
                             ->toArray();
@@ -1374,7 +1355,7 @@ class BookController extends Controller
                     $base = trim((string) ($request->input('call_number') ?? ''));
                     if ($base === '') {
                         // Fallback: if base is missing, try using any existing base from copies.
-                        $firstExisting = $book->copies()
+                        $firstExisting = $book->copiesWithTrashed()
                             ->whereNotNull('control_number')
                             ->orderBy('control_number')
                             ->value('control_number');
@@ -1384,7 +1365,7 @@ class BookController extends Controller
                         }
                     }
 
-                    $maxSuffix = $book->copies()
+                    $maxSuffix = $book->copiesWithTrashed()
                         ->whereRaw("control_number LIKE ?", [$base . '-%'])
                         ->get()
                         ->reduce(function ($max, $copy) use ($base) {
@@ -1396,8 +1377,23 @@ class BookController extends Controller
                             return $max;
                         }, 0);
 
+                    $toCreate = [];
                     for ($i = 1; $i <= $addCopies; $i++) {
                         $newCtrlNum = $base . '-' . str_pad($maxSuffix + $i, 3, '0', STR_PAD_LEFT);
+                        $toCreate[] = $newCtrlNum;
+                    }
+
+                    $collisions = BookCopy::withTrashed()
+                        ->whereIn('control_number', $toCreate)
+                        ->pluck('control_number')
+                        ->toArray();
+                    if (!empty($collisions)) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'copies' => 'Cannot add copies: control number(s) already exist: ' . implode(', ', $collisions),
+                        ]);
+                    }
+
+                    foreach ($toCreate as $newCtrlNum) {
                         BookCopy::create([
                             'book_id' => $book->id,
                             'control_number' => $newCtrlNum,
@@ -1427,23 +1423,55 @@ class BookController extends Controller
         return redirect()->route('books.catalog')->with('success', 'Book updated successfully.');
     }
 
-    public function destroy(Book $book)
+    public function destroy(Request $request, Book $book)
     {
         // Only admins can delete books
         if (!Auth::check() || Auth::user()->role !== 'admin') {
             abort(403, 'Unauthorized. Only administrators can delete books.');
         }
 
+        if ($book->hasActiveBorrows()) {
+            $message = 'Cannot delete this book because at least one copy is currently borrowed. Please return all borrowed copies first.';
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $message,
+                ], 409);
+            }
+
+            return redirect()->route('books.catalog')->with('error', $message);
+        }
+
         $title = $book->title;
         $author = $book->author;
 
-        $book->delete();
+        $deleted = $book->delete();
+        if (!$deleted) {
+            $message = 'Book could not be deleted.';
+
+            if ($request->ajax() || $request->expectsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $message,
+                ], 409);
+            }
+
+            return redirect()->route('books.catalog')->with('error', $message);
+        }
 
         ActivityLog::create([
             'user_id' => Auth::id(),
             'action'  => 'Deleted Book',
             'details' => "Book '{$title}' by {$author} deleted.",
         ]);
+
+        if ($request->ajax() || $request->expectsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Book deleted successfully.',
+            ]);
+        }
 
         return redirect()->route('books.catalog')->with('success', 'Book deleted successfully.');
     }

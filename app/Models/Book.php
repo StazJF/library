@@ -44,9 +44,49 @@ class Book extends Model
         return $this->hasMany(BookCopy::class, 'book_id', 'id');
     }
 
+    public function copiesWithTrashed()
+    {
+        return $this->hasMany(BookCopy::class, 'book_id', 'id')->withTrashed();
+    }
+
+    public function deletedCopies()
+    {
+        return $this->hasMany(BookCopy::class, 'book_id', 'id')->onlyTrashed();
+    }
+
     public function borrows()
     {
         return $this->hasMany(Borrow::class, 'book_id', 'id');
+    }
+
+    public function hasActiveBorrows(): bool
+    {
+        return $this->borrows()
+            ->whereNull('returned_at')
+            ->exists();
+    }
+
+    protected static function booted()
+    {
+        static::deleting(function (Book $book) {
+            // Prevent deleting a book if any copy is currently borrowed (active borrow transaction).
+            if ($book->hasActiveBorrows()) {
+                return false;
+            }
+
+            // When a book is soft-deleted, also soft-delete its active copies so they appear in the archive together.
+            if (method_exists($book, 'isForceDeleting') && $book->isForceDeleting()) {
+                $book->copiesWithTrashed()->forceDelete();
+                return;
+            }
+
+            $book->copies()->delete();
+        });
+
+        static::restoring(function (Book $book) {
+            // Restoring a book should also restore its copies.
+            $book->copiesWithTrashed()->restore();
+        });
     }
 
     public function getBorrowedCountAttribute()
@@ -248,8 +288,8 @@ class Book extends Model
      */
     public function migrateJsonToCopies()
     {
-        // If book already has copies in database, skip migration
-        if ($this->copies()->count() > 0) {
+        // If book already has copies in database (including soft-deleted), skip migration
+        if (method_exists($this, 'copiesWithTrashed') && $this->copiesWithTrashed()->count() > 0) {
             return ['skipped' => true, 'message' => 'Book already has BookCopy records'];
         }
 
@@ -309,4 +349,3 @@ class Book extends Model
         ];
     }
 }
-

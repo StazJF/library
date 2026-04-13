@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class BookCopy extends Model
 {
-    use HasFactory;
+    use HasFactory, SoftDeletes;
 
     protected $table = 'book_copies';
 
@@ -28,7 +29,7 @@ class BookCopy extends Model
     // ===== RELATIONSHIPS =====
     public function book()
     {
-        return $this->belongsTo(Book::class, 'book_id', 'id');
+        return $this->belongsTo(Book::class, 'book_id', 'id')->withTrashed();
     }
 
     public function borrows()

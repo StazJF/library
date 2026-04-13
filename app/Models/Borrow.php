@@ -78,10 +78,20 @@ class Borrow extends Model
     // Get the borrower (either User or Teacher based on the 'role' field)
     public function user()
     {
-        if ($this->role === 'teacher') {
-            return $this->belongsTo(Teacher::class, 'user_id');
+        if (strtolower(trim((string) $this->role)) === 'teacher') {
+            return $this->belongsTo(Teacher::class, 'user_id')->withTrashed();
         }
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
+    }
+
+    public function student()
+    {
+        return $this->belongsTo(User::class, 'user_id')->withTrashed();
+    }
+
+    public function teacher()
+    {
+        return $this->belongsTo(Teacher::class, 'user_id')->withTrashed();
     }
 
     public function book()
@@ -102,10 +112,10 @@ class Borrow extends Model
     // Accessor to get the borrower (User or Teacher) directly
     public function getBorrower()
     {
-        if ($this->role === 'teacher') {
-            return Teacher::find($this->user_id);
+        if (strtolower(trim((string) $this->role)) === 'teacher') {
+            return Teacher::withTrashed()->find($this->user_id);
         }
-        return User::find($this->user_id);
+        return User::withTrashed()->find($this->user_id);
     }
 
     public function getControlNumberDisplay(): string

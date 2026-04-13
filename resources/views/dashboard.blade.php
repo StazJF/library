@@ -3,25 +3,152 @@
 @section('content')
 <div class="container">
     <div class="container">
+        @php
+            $nearDueStudentBorrows = $nearDueStudentBorrows ?? collect();
+            $nearDueTeacherBorrows = $nearDueTeacherBorrows ?? collect();
+            $nearDueBorrows = $nearDueBorrows ?? $nearDueStudentBorrows->concat($nearDueTeacherBorrows);
+        @endphp
+
         @if($nearDueBorrows->count() > 0)
+            @php
+                $isTeacherBorrow = function ($borrow): bool {
+                    return strtolower(trim((string) ($borrow->role ?? ''))) === 'teacher';
+                };
+
+                $displayBorrowerName = function ($borrow) use ($isTeacherBorrow) {
+                    $borrower = $isTeacherBorrow($borrow)
+                        ? ($borrow->teacher ?? null)
+                        : ($borrow->student ?? null);
+
+                    if (!$borrower) {
+                        return 'Unknown';
+                    }
+
+                    if ($isTeacherBorrow($borrow)) {
+                        $name = trim((string) ($borrower->name ?? ''));
+                        if ($name !== '') {
+                            return $name;
+                        }
+                    }
+
+                    $first = trim((string) ($borrower->first_name ?? ''));
+                    $last = trim((string) ($borrower->last_name ?? ''));
+                    $full = trim($first . ' ' . $last);
+                    return $full !== '' ? $full : 'Unknown';
+                };
+            @endphp
             <div class="alert alert-warning mb-4">
                 <strong>⚠️ Upcoming Due Dates:</strong><br>
                 The following users have books due within 3 days:<br>
-                <ul class="mb-0">
-                    @foreach($nearDueBorrows->take(3) as $borrow)
-                        <li>
-                            <strong>{{ $borrow->user->first_name }} {{ $borrow->user->last_name }}</strong> -
-                            <span class="text-dark">{{ $borrow->book->title ?? 'Unknown Book' }}</span>
-                            <span class="text-muted">(Due: {{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }})</span>
-                        </li>
-                    @endforeach
-                </ul>
-                @if($nearDueBorrows->count() > 3)
-                    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;">
-                        <small style="color:#92400e;">+{{ $nearDueBorrows->count() - 3 }} more borrow(s) due soon</small>
-                        <a href="{{ route('borrow.return.index') }}" style="margin-left:0.5rem;font-weight:600;">View All</a>
+                <div class="mt-2" style="max-height:50px;overflow-y:auto;padding-right:0.25rem;">
+                    <ul class="mb-0">
+                        @foreach($nearDueBorrows as $borrow)
+                            <li>
+                                <strong>{{ $displayBorrowerName($borrow) }}</strong>
+                                <span class="text-muted">({{ $isTeacherBorrow($borrow) ? 'Teacher' : 'Student' }})</span>
+                                -
+                                <span class="text-dark">{{ $borrow->book->title ?? 'Unknown Book' }}</span>
+                                <span class="text-muted">(Due: {{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }})</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+
+                <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                    <small style="color:#92400e;">
+                        Showing {{ $nearDueBorrows->count() }} due borrow(s) • Students: {{ $nearDueStudentBorrows->count() }} • {{-- Teachers: {{ $nearDueTeacherBorrows->count() }} --}}
+                    </small>
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#nearDueModal">
+                        View All
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- Upcoming Due Dates Modal -->
+            <div class="modal fade" id="nearDueModal" tabindex="-1" aria-labelledby="nearDueModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="nearDueModalLabel">Upcoming Due Dates (Next 3 Days)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="nav nav-tabs" id="nearDueTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="near-due-students-tab" data-bs-toggle="tab" data-bs-target="#near-due-students" type="button" role="tab" aria-controls="near-due-students" aria-selected="true">
+                                        Students ({{ $nearDueStudentBorrows->count() }})
+                                    </button>
+                                </li>
+                                {{-- <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="near-due-teachers-tab" data-bs-toggle="tab" data-bs-target="#near-due-teachers" type="button" role="tab" aria-controls="near-due-teachers" aria-selected="false">
+                                        Teachers ({{ $nearDueTeacherBorrows->count() }})
+                                    </button>
+                                </li> --}}
+                            </ul>
+
+                            <div class="tab-content pt-3">
+                                <div class="tab-pane fade show active" id="near-due-students" role="tabpanel" aria-labelledby="near-due-students-tab" tabindex="0">
+                                    @if($nearDueStudentBorrows->count() === 0)
+                                        <div class="text-muted">No student borrow(s) due soon.</div>
+                                    @else
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Student</th>
+                                                        <th>Book</th>
+                                                        <th>Due Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($nearDueStudentBorrows as $borrow)
+                                                        <tr>
+                                                            <td>{{ $displayBorrowerName($borrow) }}</td>
+                                                            <td>{{ $borrow->book->title ?? 'Unknown Book' }}</td>
+                                                            <td>{{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="tab-pane fade" id="near-due-teachers" role="tabpanel" aria-labelledby="near-due-teachers-tab" tabindex="0">
+                                    @if($nearDueTeacherBorrows->count() === 0)
+                                        <div class="text-muted">No teacher borrow(s) due soon.</div>
+                                    @else
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Teacher</th>
+                                                        <th>Book</th>
+                                                        <th>Due Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($nearDueTeacherBorrows as $borrow)
+                                                        <tr>
+                                                            <td>{{ $displayBorrowerName($borrow) }}</td>
+                                                            <td>{{ $borrow->book->title ?? 'Unknown Book' }}</td>
+                                                            <td>{{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <a href="{{ route('borrow.return.index') }}" class="btn btn-dark">View in Returns</a>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
                     </div>
-                @endif
+                </div>
             </div>
         @endif
         {{-- @if($nearDueBorrows->count() > 0)
@@ -447,4 +574,3 @@
 </script>
 </div>
 @endsection
-
