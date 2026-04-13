@@ -76,6 +76,9 @@ class TeacherController extends Controller
             'gender'      => 'required|string',
             'address'     => 'required|string',
             'phone_number'=> 'required|string|max:20',
+            'data_privacy_agreement' => 'accepted',
+        ], [
+            'data_privacy_agreement.accepted' => 'You must agree to the Data Privacy statement before saving.',
         ]);
         $teacher = Teacher::create($request->only(['name','email','employee_id','rank_position','gender','address','phone_number']));
         ActivityLog::create([

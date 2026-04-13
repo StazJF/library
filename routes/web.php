@@ -79,6 +79,7 @@ Route::middleware(['auth'])->group(function () {
     // Utilities backup download/list routes
     Route::get('utilities/backups', [UtilitiesController::class, 'listBackups'])->name('utilities.backups');
     Route::get('utilities/download-backup/{filename}', [UtilitiesController::class, 'downloadBackup'])->name('utilities.downloadBackup');
+    Route::get('utilities/backup-status', [UtilitiesController::class, 'backupStatus'])->name('utilities.backupStatus');
     // ...existing code...
     Route::post('users/import', [UserController::class, 'import'])->name('users.import');
     Route::patch('users/{user}/remark', [UserController::class, 'updateRemark'])->name('users.updateRemark');
@@ -133,6 +134,7 @@ Route::get('users/print', [UserController::class, 'printAll'])->name('users.prin
         Route::delete('/archive/delete-all/{model}', [UtilitiesController::class, 'deleteAll'])->name('utilities.deleteAll');
 
         Route::post('/backup', [UtilitiesController::class, 'backup'])->name('utilities.backup');
+        Route::delete('/backup/{filename}', [UtilitiesController::class, 'deleteBackup'])->name('utilities.deleteBackup');
     });
 
 });

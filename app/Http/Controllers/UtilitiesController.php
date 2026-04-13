@@ -12,6 +12,7 @@ use App\Models\Teacher;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class UtilitiesController extends Controller
 {
@@ -32,6 +33,33 @@ class UtilitiesController extends Controller
             }
         }
         return view('utilities.backups', compact('backups'));
+    }
+
+    public function backupStatus()
+    {
+        $backupDir = storage_path('app/backups');
+        $file = $backupDir . '/database_backup.zip';
+
+        if (!file_exists($file)) {
+            return response()
+                ->json([
+                    'exists' => false,
+                ])
+                ->header('Cache-Control', 'no-store');
+        }
+
+        $mtime = filemtime($file) ?: null;
+
+        return response()
+            ->json([
+                'exists' => true,
+                'name' => basename($file),
+                'size' => filesize($file),
+                'modified_at_unix' => $mtime,
+                'modified_at_iso' => $mtime ? date('c', $mtime) : null,
+                'modified_at' => $mtime ? date('Y-m-d H:i:s', $mtime) : null,
+            ])
+            ->header('Cache-Control', 'no-store');
     }
     
 
@@ -242,7 +270,7 @@ class UtilitiesController extends Controller
     }
 
     /**
-     * Database Backup Function (MySQL)
+     * Database Backup Function (MySQL) - Manual backup triggered via UI
      */
     public function backup()
     {
@@ -257,32 +285,150 @@ class UtilitiesController extends Controller
             mkdir($backupDir, 0777, true);
         }
 
-        $filename = "mysql_backup_" . date('Y-m-d_H-i-s');
+        // Use single backup filename
+        $filename = "database_backup";
         $sqlPath = $backupDir . '/' . $filename . '.sql';
-
-        $passwordPart = $password !== null && $password !== '' ? "--password={$password}" : '';
-        $command = "mysqldump --host={$host} --port={$port} --user={$username} {$passwordPart} {$database} > \"{$sqlPath}\"";
-
-        exec($command);
-
         $zipPath = $backupDir . '/' . $filename . '.zip';
-        $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
-            if (file_exists($sqlPath)) {
-                $zip->addFile($sqlPath, basename($sqlPath));
-            }
-            $zip->close();
+
+        try {
+            // Use PHP's database connection to export
+            $this->exportDatabaseUsingPHP($sqlPath, $host, $port, $database, $username, $password);
+        } catch (\Exception $e) {
+            Log::error('Backup failed', ['error' => $e->getMessage()]);
+            return redirect()->route('utilities.backups')->with('error', 'Backup failed: ' . $e->getMessage());
         }
+
+        if (!file_exists($sqlPath)) {
+            return redirect()->route('utilities.backups')->with('error', 'Backup failed. SQL file not created.');
+        }
+
+        // Create zip archive (overwrite if exists)
+        $zip = new \ZipArchive();
+        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) !== TRUE) {
+            @unlink($sqlPath);
+            return redirect()->route('utilities.backups')->with('error', 'Failed to create backup archive.');
+        }
+
+        if (file_exists($sqlPath)) {
+            $zip->addFile($sqlPath, basename($sqlPath));
+        }
+        $zip->close();
+
+        // Clean up temporary SQL file
+        @unlink($sqlPath);
 
         ActivityLog::create([
             'user_id' => Auth::id(),
-            'action' => 'Database Backup',
+            'action' => 'Manual Database Backup',
             'target_type' => 'database',
-            'details' => 'Created MySQL backup: ' . $filename
+            'details' => 'File: ' . $filename . '.zip | Size: ' . number_format(filesize($zipPath) / 1024, 2) . ' KB | Time: ' . date('Y-m-d H:i:s')
         ]);
 
-        // Do not download, just redirect back with success message
         return redirect()->route('utilities.backups')->with('success', 'Backup created successfully.');
+    }
+
+    /**
+     * Export database using PHP's database connection
+     */
+    private function exportDatabaseUsingPHP($sqlPath, $host, $port, $database, $username, $password)
+    {
+        $pdo = new \PDO(
+            "mysql:host={$host};port={$port};charset=utf8mb4",
+            $username,
+            $password,
+            [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4",
+            ]
+        );
+
+        $sql = "-- MySQL Database Dump\r\n";
+        $sql .= "-- Generated on " . date('Y-m-d H:i:s') . "\r\n";
+        $sql .= "-- Database: `" . $database . "`\r\n";
+        $sql .= "-- Host: " . $host . "\r\n";
+        $sql .= "\r\n";
+        $sql .= "SET FOREIGN_KEY_CHECKS=0;\r\n";
+        $sql .= "SET AUTOCOMMIT=0;\r\n";
+        $sql .= "SET UNIQUE_CHECKS=0;\r\n\r\n";
+
+        // Switch to target database
+        $pdo->exec("USE `{$database}`");
+
+        // Get all tables
+        $stmt = $pdo->query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{$database}' ORDER BY TABLE_NAME");
+        $tables = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+
+        foreach ($tables as $table) {
+            // Get CREATE TABLE statement
+            $stmt = $pdo->prepare("SHOW CREATE TABLE `{$table}`");
+            $stmt->execute();
+            $createTable = $stmt->fetch(\PDO::FETCH_ASSOC);
+            
+            if ($createTable) {
+                $sql .= "\r\n-- Table: `{$table}`\r\n";
+                $sql .= "DROP TABLE IF EXISTS `{$table}`;\r\n";
+                $sql .= $createTable['Create Table'] . ";\r\n";
+
+                // Get table data
+                $stmt = $pdo->prepare("SELECT * FROM `{$table}`");
+                $stmt->execute();
+                $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+
+                if (count($rows) > 0) {
+                    $sql .= "\r\nINSERT INTO `{$table}` VALUES\r\n";
+                    $values = [];
+                    foreach ($rows as $row) {
+                        $rowValues = [];
+                        foreach ($row as $value) {
+                            if ($value === null) {
+                                $rowValues[] = 'NULL';
+                            } else {
+                                $rowValues[] = $pdo->quote($value);
+                            }
+                        }
+                        $values[] = '(' . implode(',', $rowValues) . ')';
+                    }
+                    $sql .= implode(",\r\n", $values) . ";\r\n";
+                }
+            }
+        }
+
+        $sql .= "\r\nSET FOREIGN_KEY_CHECKS=1;\r\nCOMMIT;\r\nSET AUTOCOMMIT=1;\r\n";
+
+        // Write to file
+        if (file_put_contents($sqlPath, $sql) === false) {
+            throw new \Exception("Failed to write SQL dump to file");
+        }
+    }
+
+    /**
+     * Delete a specific backup file
+     */
+    public function deleteBackup($filename)
+    {
+        $backupDir = storage_path('app/backups');
+        $safeName = basename($filename);
+        $file = $backupDir . '/' . $safeName;
+
+        if (!file_exists($file)) {
+            return back()->with('error', 'Backup file not found.');
+        }
+
+        if (!str_ends_with($safeName, '.zip')) {
+            return back()->with('error', 'Invalid backup file.');
+        }
+
+        if (unlink($file)) {
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action' => 'Deleted Backup',
+                'target_type' => 'database',
+                'details' => 'Deleted backup file: ' . $safeName
+            ]);
+            return back()->with('success', 'Backup deleted successfully.');
+        }
+
+        return back()->with('error', 'Failed to delete backup file.');
     }
 
     // Book archive actions
