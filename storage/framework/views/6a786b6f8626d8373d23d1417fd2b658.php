@@ -1,11 +1,12 @@
 <?php $__env->startSection('content'); ?>
 <div class="container">
+    <div class="container">
         <?php if($nearDueBorrows->count() > 0): ?>
-            <div class="alert alert-warning mb-4" style="max-height: 100px; overflow-y: auto;">
+            <div class="alert alert-warning mb-4">
                 <strong>⚠️ Upcoming Due Dates:</strong><br>
                 The following users have books due within 3 days:<br>
                 <ul class="mb-0">
-                    <?php $__currentLoopData = $nearDueBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                    <?php $__currentLoopData = $nearDueBorrows->take(3); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                         <li>
                             <strong><?php echo e($borrow->user->first_name); ?> <?php echo e($borrow->user->last_name); ?></strong> -
                             <span class="text-dark"><?php echo e($borrow->book->title ?? 'Unknown Book'); ?></span>
@@ -13,8 +14,15 @@
                         </li>
                     <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                 </ul>
+                <?php if($nearDueBorrows->count() > 3): ?>
+                    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;">
+                        <small style="color:#92400e;">+<?php echo e($nearDueBorrows->count() - 3); ?> more borrow(s) due soon</small>
+                        <a href="<?php echo e(route('borrow.return.index')); ?>" style="margin-left:0.5rem;font-weight:600;">View All</a>
+                    </div>
+                <?php endif; ?>
             </div>
         <?php endif; ?>
+        
     <!-- Top 3 Boxes (shadcn style) -->
     <div class="d-flex gap-4 mb-4" style="flex-wrap:wrap;">
         <div class="flex-fill min-w-0" style="min-width:200px;">
