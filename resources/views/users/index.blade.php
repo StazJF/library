@@ -35,9 +35,9 @@
             <a href="{{ route('users.print', request()->query()) }}" target="_blank" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-2"></i>Print All
             </a>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
+            {{-- <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
                 <i class="bi bi-download me-2"></i>Import CSV
-            </button>
+            </button> --}}
             <a href="{{ route('users.create') }}" class="btn btn-success">
                 <i class="bi bi-plus-circle me-2"></i>Add Student
             </a>
