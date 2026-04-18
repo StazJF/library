@@ -1,0 +1,687 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\User;
+use App\Models\ActivityLog; 
+use App\Models\Teacher;
+use App\Models\BookCopy;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+
+class UserController extends Controller
+{
+    private function hydrateMissingBookCopy($borrows): void
+    {
+        foreach ($borrows as $borrow) {
+            if ($borrow->bookCopy) {
+                continue;
+            }
+
+            $copyNumber = $borrow->copy_number ? trim((string) $borrow->copy_number) : null;
+            if (!$copyNumber) {
+                continue;
+            }
+
+            $copy = BookCopy::where('book_id', $borrow->book_id)
+                ->where('control_number', $copyNumber)
+                ->first();
+
+            if (!$copy && preg_match('/^\d{3}$/', $copyNumber) === 1) {
+                $candidates = BookCopy::where('book_id', $borrow->book_id)
+                    ->where('control_number', 'like', $copyNumber . '-%')
+                    ->limit(2)
+                    ->get();
+                if ($candidates->count() === 1) {
+                    $copy = $candidates->first();
+                }
+            }
+
+            if ($copy) {
+                $borrow->setRelation('bookCopy', $copy);
+            }
+        }
+    }
+
+    public function teachers(Request $request)
+    {
+        try {
+            $query = User::where('role', 'teacher');
+
+            if ($request->filled('search')) {
+                $search = $request->input('search');
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%")
+                      ->orWhere('gender', 'like', "%{$search}%")
+                      ->orWhere('address', 'like', "%{$search}%")
+                      ->orWhere('phone_number', 'like', "%{$search}%");
+                });
+            }
+
+            $teachers = $query->orderBy('name')->paginate(10);
+
+            return view('users.teachers', compact('teachers'));
+        } catch (\Exception $e) {
+            Log::error('Error retrieving teachers: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while retrieving teachers. Please try again.');
+        }
+    }
+    public function index(Request $request)
+    {
+        try {
+            $query = User::where(function($q) {
+                $q->whereNull('role')->orWhere('role', '!=', 'teacher');
+            })->with('borrows.book'); // eager-load borrows with books
+
+            // Handle separate search parameters
+            if ($request->filled('name')) {
+                $name = $request->input('name');
+                $query->where(function($q) use ($name) {
+                    $q->where('first_name', 'like', "%{$name}%")
+                      ->orWhere('last_name', 'like', "%{$name}%");
+                });
+            }
+
+            if ($request->filled('strand')) {
+                $strand = $request->input('strand');
+                $query->where('grade_section', 'like', "%{$strand}%");
+            }
+
+            if ($request->filled('lrn')) {
+                $lrn = $request->input('lrn');
+                $query->where('lrn', 'like', "%{$lrn}%");
+            }
+
+            if ($request->filled('grade')) {
+                $grade = $request->input('grade');
+                // Use regex to match grade as a separate word (starting with the grade and followed by space or end of string)
+                $query->whereRaw("grade_section REGEXP ?", ["^{$grade}([^0-9]|$)"]);
+            }
+
+            $users = $query->orderBy('last_name')
+                           ->orderBy('first_name')
+                           ->paginate(10);
+
+            // Convert dates to Carbon to prevent blanks
+            $users->each(function($user) {
+                $user->borrows->each(function($borrow) {
+                    if ($borrow->borrowed_at) $borrow->borrowed_at = Carbon::parse($borrow->borrowed_at);
+                    if ($borrow->due_date)    $borrow->due_date    = Carbon::parse($borrow->due_date);
+                });
+            });
+
+            return view('users.index', compact('users'));
+        } catch (\Exception $e) {
+            Log::error('Error retrieving users: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while retrieving users. Please try again.');
+        }
+    }
+
+    public function create()
+    {
+        return view('users.create_student');
+    }
+
+    public function store(Request $request)
+    {
+        try {
+            // If creating a teacher, validate only the relevant fields
+            if ($request->input('role') === 'teacher') {
+                $request->validate([
+                    'name'        => 'required|string|max:255',
+                    'gender'      => 'required|string',
+                    'address'     => 'required|string',
+                    'phone_number'=> 'required|string|max:20',
+                    'email'       => 'required|email|unique:users,email',
+                ]);
+
+                $user = User::create([
+                    'name'        => $request->name,
+                    'gender'      => $request->gender,
+                    'address'     => $request->address,
+                    'phone_number'=> $request->phone_number,
+                    'email'       => $request->email,
+                    'role'        => 'teacher',
+                ]);
+
+                ActivityLog::create([
+                    'user_id' => Auth::id(),
+                    'action'  => 'Added Teacher',
+                    'details' => "Teacher '{$user->name}' added by " . Auth::user()->name,
+                ]);
+
+                return redirect()->route('users.teachers')->with('success', 'Teacher created successfully.');
+            }
+
+            $request->validate([
+                'first_name'    => 'required|string|max:255',
+                'last_name'     => 'required|string|max:255',
+                'gender'        => 'required|string|in:male,female,other',
+                'grade'         => 'nullable|integer|between:7,12',
+                'strand'        => 'nullable|string|in:ABM,GAS,STEM,HUMSS,ICT,TVL',
+                'section'       => 'nullable|string|max:50',
+                'grade_section' => 'nullable|string|max:255',
+                'lrn'           => 'nullable|string|unique:users,lrn',
+                'phone_number'  => 'nullable|string|max:20',
+                'address'       => 'nullable|string',
+                'email'         => 'nullable|email|unique:users,email',
+                'borrowed'      => 'nullable|integer|min:0',
+            ]);
+
+            // Combine grade, strand, section into grade_section if separate fields are provided
+            $gradeSection = $request->grade_section;
+            if (!$gradeSection && ($request->grade || $request->strand || $request->section)) {
+                $parts = [];
+                if ($request->grade) $parts[] = $request->grade;
+                if ($request->strand) $parts[] = $request->strand;
+                if ($request->section) $parts[] = $request->section;
+                $gradeSection = implode('-', $parts);
+            }
+
+            $user = User::create([
+                'first_name'    => ucwords(strtolower($request->first_name)),
+                'last_name'     => ucwords(strtolower($request->last_name)),
+                'gender'        => strtolower(trim((string) $request->gender)),
+                'grade_section' => $gradeSection,
+                'lrn'           => $request->lrn,
+                'phone_number'  => $request->phone_number,
+                'address'       => $request->address,
+                'email'         => $request->email,
+                'borrowed'      => $request->borrowed ?? 0,
+            ]);
+
+            // Log activity with full name
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Added Student',
+                'details' => "Student '{$user->first_name} {$user->last_name}' added by " . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            ]);
+
+            return redirect()->route('users.index')->with('success', 'User created successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error in user store: ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error creating user: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while creating the user. Please try again.')->withInput();
+        }
+    }
+
+    public function show(Request $request, User $user)
+    {
+        try {
+            $origin = $request->query('origin'); // personal|distribution|null
+            $status = $request->query('status'); // lost|damaged|repaired|found|issues|null
+            $search = $request->query('search');
+
+            $origin = in_array($origin, ['personal', 'distribution'], true) ? $origin : null;
+            $status = in_array($status, ['lost', 'damaged', 'repaired', 'found', 'issues'], true) ? $status : null;
+
+            $query = $user->borrows()
+                ->with([
+                    'book',
+                    'bookCopy',
+                    'lostDamagedItem' => function ($q) {
+                        $q->with('histories');
+                    },
+                ])
+                ->latest('borrowed_at');
+
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('book', function($bookQ) use ($search) {
+                        $bookQ->where('title', 'like', "%{$search}%")
+                              ->orWhere('author', 'like', "%{$search}%");
+                    })
+                    ->orWhere('copy_number', 'like', "%{$search}%")
+                    ->orWhereHas('bookCopy', function($copyQ) use ($search) {
+                        $copyQ->where('control_number', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            if ($origin) {
+                $query->where('origin', $origin);
+            }
+
+            if ($status === 'issues') {
+                $query->where(function ($q) {
+                    $q->whereHas('lostDamagedItem')
+                        ->orWhereIn('remark', ['Lost', 'Damage']);
+                });
+            } elseif ($status === 'lost') {
+                $query->where(function ($q) {
+                    $q->whereHas('lostDamagedItem', function ($inner) {
+                        $inner->where('type', 'lost')->where('status', 'active');
+                    })->orWhere('remark', 'Lost');
+                });
+            } elseif ($status === 'damaged') {
+                $query->where(function ($q) {
+                    $q->whereHas('lostDamagedItem', function ($inner) {
+                        $inner->where('type', 'damaged')->where('status', 'active');
+                    })->orWhere('remark', 'Damage');
+                });
+            } elseif ($status === 'repaired') {
+                $query->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'damaged')
+                        ->whereIn('status', ['repaired', 'returned']);
+                });
+            } elseif ($status === 'found') {
+                $query->whereHas('lostDamagedItem', function ($inner) {
+                    $inner->where('type', 'lost')->where('status', 'returned');
+                });
+            }
+
+            $borrows = $query->get();
+            $this->hydrateMissingBookCopy($borrows);
+
+            $totalBorrows = $user->borrows()->count();
+
+            $allBorrows = $user->borrows()
+                ->with(['lostDamagedItem' => function ($q) {
+                    $q->with('histories');
+                }])
+                ->get();
+            $this->hydrateMissingBookCopy($allBorrows);
+
+            $statusCounts = [
+                'lost' => 0,
+                'damaged' => 0,
+                'repaired' => 0,
+                'found' => 0,
+                'issues' => 0,
+            ];
+
+            foreach ($allBorrows as $b) {
+                $lossType = $b->getLossType();
+                if (!$lossType) {
+                    if (($b->remark ?? '') === 'Lost') {
+                        $lossType = 'lost';
+                    } elseif (($b->remark ?? '') === 'Damage') {
+                        $lossType = 'damaged';
+                    }
+                }
+
+                if ($lossType === 'lost') {
+                    $statusCounts['lost']++;
+                } elseif ($lossType === 'damaged') {
+                    $statusCounts['damaged']++;
+                } elseif ($lossType === 'repaired') {
+                    $statusCounts['repaired']++;
+                } elseif ($lossType === 'found') {
+                    $statusCounts['found']++;
+                }
+            }
+            $statusCounts['issues'] = $statusCounts['lost'] + $statusCounts['damaged'] + $statusCounts['repaired'] + $statusCounts['found'];
+
+            $filterState = [
+                'origin' => $origin ?? 'all',
+                'status' => $status ?? 'all',
+                'search' => $search ?? '',
+            ];
+
+            return view('users.show', compact('user', 'borrows', 'totalBorrows', 'filterState', 'statusCounts'));
+        } catch (\Exception $e) {
+            Log::error('Error retrieving user: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('users.index')->with('error', 'An error occurred while retrieving the user.');
+        }
+    }
+
+    public function print(User $user)
+    {
+        try {
+            $user->load([
+                'borrows.book',
+                'borrows.bookCopy',
+                'borrows.lostDamagedItem.histories',
+            ]);
+            $this->hydrateMissingBookCopy($user->borrows);
+
+            return view('users.print-user', compact('user'));
+        } catch (\Exception $e) {
+            Log::error('Error printing user: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
+            return redirect()->route('users.index')->with('error', 'An error occurred while preparing the print view.');
+        }
+    }
+
+    public function edit(User $user)
+    {
+        return view('users.edit_student', compact('user'));
+    }
+
+    public function update(Request $request, User $user)
+    {
+        try {
+            $request->validate([
+                'first_name'    => 'required|string|max:255',
+                'last_name'     => 'required|string|max:255',
+                'gender'        => 'required|string|in:male,female,other',
+                'grade'         => 'nullable|integer|between:7,12',
+                'strand'        => 'nullable|string|in:ABM,GAS,STEM,HUMSS,ICT,TVL',
+                'section'       => 'nullable|string|max:50',
+                'grade_section' => 'nullable|string|max:255',
+                'lrn'           => 'nullable|string|unique:users,lrn,' . $user->id,
+                'phone_number'  => 'nullable|string|max:20',
+                'address'       => 'nullable|string',
+                'email'         => 'nullable|email|unique:users,email,' . $user->id,
+                'borrowed'      => 'nullable|integer|min:0',
+            ]);
+
+            // Combine grade, strand, section into grade_section if separate fields are provided
+            $gradeSection = $request->grade_section;
+            if (!$gradeSection && ($request->grade || $request->strand || $request->section)) {
+                $parts = [];
+                if ($request->grade) $parts[] = $request->grade;
+                if ($request->strand) $parts[] = $request->strand;
+                if ($request->section) $parts[] = $request->section;
+                $gradeSection = implode('-', $parts);
+            }
+
+            $user->update([
+                'first_name'    => ucwords(strtolower($request->first_name)),
+                'last_name'     => ucwords(strtolower($request->last_name)),
+                'gender'        => strtolower(trim((string) $request->gender)),
+                'grade_section' => $gradeSection,
+                'lrn'           => $request->lrn,
+                'phone_number'  => $request->phone_number,
+                'address'       => $request->address,
+                'email'         => $request->email,
+                'borrowed'      => $request->borrowed ?? $user->borrowed,
+            ]);
+
+            // Log activity with full name
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Updated Student',
+                'details' => "Student '{$user->first_name} {$user->last_name}' updated by " . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            ]);
+
+            return redirect()->route('users.index')->with('success', 'User updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error in user update: ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error updating user: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while updating the user. Please try again.')->withInput();
+        }
+    }
+
+//print all students
+public function printAll(Request $request)
+    {
+        try {
+            $query = User::where(function($q) {
+                $q->whereNull('role')->orWhere('role', '!=', 'teacher');
+            });
+
+            // Apply filters if provided
+            if ($request->has('name') && $request->name) {
+                $name = $request->name;
+                $query->where(function ($q) use ($name) {
+                    $q->whereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", ["%{$name}%"])
+                      ->orWhereRaw("CONCAT(last_name, ' ', first_name) LIKE ?", ["%{$name}%"])
+                      ->orWhere('first_name', 'LIKE', "%{$name}%")
+                      ->orWhere('last_name', 'LIKE', "%{$name}%");
+                });
+            }
+
+            if ($request->has('grade') && $request->grade) {
+                $grade = $request->grade;
+                // Use regex to match grade as a separate word (starting with the grade and followed by space or end of string)
+                $query->whereRaw("grade_section REGEXP ?", ["^{$grade}([^0-9]|$)"]);
+            }
+
+            if ($request->has('strand') && $request->strand) {
+                $strand = $request->strand;
+                $query->where('grade_section', 'LIKE', "%{$strand}%");
+            }
+
+            if ($request->has('lrn') && $request->lrn) {
+                $query->where('lrn', 'LIKE', "%{$request->lrn}%");
+            }
+
+            $students = $query->orderBy('last_name')->orderBy('first_name')->get();
+
+            return view('users.print', compact('students'));
+        } catch (\Exception $e) {
+            Log::error('Error retrieving students for print: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while preparing student list for printing.');
+        }
+    }
+
+// Print all teachers
+public function printTeachers()
+{
+    try {
+        $teachers = Teacher::orderBy('last_name')
+            ->orderBy('first_name')
+            ->get()
+            ->map(function ($teacher) {
+                if (!empty($teacher->last_name) || !empty($teacher->first_name)) {
+                    $teacher->name = trim($teacher->last_name . ', ' . $teacher->first_name);
+                }
+                return $teacher;
+            });
+
+        return view('users.print-teacher', compact('teachers'));
+    } catch (\Exception $e) {
+        Log::error('Error retrieving teachers for print: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        return redirect()->back()->with('error', 'An error occurred while preparing teacher list for printing.');
+    }
+}
+    public function destroy(User $user)
+    {
+        try {
+            // Only admins can delete users/students
+            if (Auth::user() && Auth::user()->role !== 'admin') {
+                abort(403, 'Unauthorized. Only administrators can delete students.');
+            }
+
+            $name = $user->first_name . ' ' . $user->last_name;
+            $user->delete(); // Permanently deletes (no soft deletes)
+
+            // Log activity with full name of the admin performing the delete
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Deleted Student',
+                'details' => "Student '{$name}' deleted by " . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            ]);
+
+            return redirect()->route('users.index')->with('success', 'User deleted successfully.');
+        } catch (\Exception $e) {
+            Log::warning('Authorization error in user delete: ' . $e->getMessage(), ['user_id' => $user->id]);
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Error deleting user: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while deleting the user. Please try again.');
+        }
+    }
+
+    public function import(Request $request)
+    {
+        try {
+            $request->validate([
+                'file' => 'required|mimes:csv,txt,xlsx,xls',
+            ]);
+
+            $errors = [];
+
+            $file = $request->file('file');
+            if (!$file || !$file->isValid()) {
+                return redirect()->route('users.index')->with('error', 'The uploaded file is invalid. Please try again.');
+            }
+
+            $extension = $file->getClientOriginalExtension();
+
+            if (in_array($extension, ['xlsx', 'xls'])) {
+                // Temporarily disable Excel import due to compatibility issues
+                return redirect()->route('users.index')->with('error', 'Excel import is currently not available. Please use CSV format for now.');
+            } else {
+                // CSV
+                $handle = fopen($file->getRealPath(), 'r');
+                if ($handle === false) {
+                    Log::error('Failed to open uploaded file for reading');
+                    return redirect()->route('users.index')->with('error', 'Failed to read the file. Please try again.');
+                }
+
+                $rows = [];
+                while (($row = fgetcsv($handle)) !== false) {
+                    $rows[] = $row;
+                }
+                fclose($handle);
+            }
+
+            // Skip header row if present
+            if (isset($rows[0]) && is_array($rows[0]) && count($rows[0]) >= 2) {
+                array_shift($rows);
+            }
+
+            foreach ($rows as $row) {
+                try {
+                    // Basic validation: at least name is required
+                    if (empty($row[0])) {
+                        $errors[] = "Missing required field (Name) in row: " . json_encode($row);
+                        continue;
+                    }
+
+                    // Parse combined name into first_name and last_name
+                    $fullName = trim($row[0]);
+                    $nameParts = explode(' ', $fullName, 2); // Split into max 2 parts
+                    $firstName = $nameParts[0];
+                    $lastName = $nameParts[1] ?? ''; // Second part as last name, empty if only one word
+
+                    // Check if LRN already exists (if provided)
+                    if (!empty($row[4]) && User::where('lrn', $row[4])->exists()) {
+                        $errors[] = "LRN {$row[4]} already exists.";
+                        continue;
+                    }
+
+                    // Combine grade, strand, and section into grade_section
+                    $grade = trim($row[1] ?? '');
+                    $strand = trim($row[2] ?? '');
+                    $section = trim($row[3] ?? '');
+                    $gradeSectionCombined = null;
+
+                    if ($grade || $strand || $section) {
+                        $parts = [];
+                        if ($grade) $parts[] = $grade;
+                        if ($strand) $parts[] = $strand;
+                        if ($section) $parts[] = $section;
+                        $gradeSectionCombined = implode('-', $parts);
+                    }
+
+                    User::create([
+                        'first_name'    => $firstName,
+                        'last_name'     => $lastName,
+                        'grade_section' => $gradeSectionCombined,
+                        'lrn'           => $row[4] ?? null,
+                        'phone_number'  => $row[5] ?? null,
+                        'address'       => $row[6] ?? null,
+                    ]);
+                } catch (\Exception $rowError) {
+                    Log::warning('Error processing row in import: ' . json_encode($row) . ' - ' . $rowError->getMessage());
+                    $errors[] = "Error processing row: " . json_encode(array_slice($row, 0, 3));
+                    continue;
+                }
+            }
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Imported Students',
+                'details' => 'Students imported from ' . strtoupper($extension) . ' file.' . (!empty($errors) ? ' Errors: ' . implode(', ', array_slice($errors, 0, 5)) : ''),
+            ]);
+
+            if (!empty($errors)) {
+                return redirect()->route('users.index')->with('warning', 'Students imported with some errors: ' . implode(', ', array_slice($errors, 0, 3)));
+            }
+
+            return redirect()->route('users.index')->with('success', 'Students imported successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error in import: ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error importing students: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return redirect()->route('users.index')->with('error', 'An error occurred during import. Please try again.');
+        }
+    }
+
+    public function updateRemark(Request $request, User $user)
+    {
+        try {
+            $request->validate([
+                'remark' => 'nullable|string',
+                'comment' => 'nullable|string|max:255',
+            ]);
+
+            $remark = $request->remark;
+            if ($remark === 'Special Notes' && $request->filled('comment')) {
+                $remark = 'Special Notes: ' . $request->comment;
+            }
+
+            $user->update(['remark' => $remark]);
+
+            // Log activity
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Updated Student Remark',
+                'details' => "Updated remark for student {$user->first_name} {$user->last_name} to: {$remark}",
+            ]);
+
+            return redirect()->route('users.index')->with('success', 'Remark updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::warning('Validation error in remark update: ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error updating remark: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while updating the remark. Please try again.')->withInput();
+        }
+    }
+
+    /**
+     * Bulk delete selected users (students).
+     */
+    public function bulkDelete(Request $request)
+    {
+        try {
+            $ids = $request->input('selected_users', []);
+
+            Log::info('bulkDelete called', ['selected_users' => $ids, 'actor_id' => Auth::id()]);
+
+            if (!is_array($ids) || count($ids) === 0) {
+                return redirect()->route('users.index')->with('warning', 'No students selected for deletion.');
+            }
+
+            $deleted = 0;
+            $names = [];
+            $users = User::whereIn('id', $ids)->get();
+            
+            if ($users->isEmpty()) {
+                return redirect()->route('users.index')->with('warning', 'No valid students found for deletion.');
+            }
+
+            foreach ($users as $user) {
+                $names[] = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->name ?? $user->id);
+            }
+            
+            // Permanently delete (no soft deletes)
+            User::whereIn('id', $ids)->delete();
+            $deleted = count($ids);
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Bulk Deleted Students',
+                'details' => "Deleted {$deleted} students: " . implode(', ', array_slice($names, 0, 10)) . (count($names) > 10 ? '...' : ''),
+            ]);
+
+            return redirect()->route('users.index')->with('success', "Deleted {$deleted} selected students.");
+        } catch (\Exception $e) {
+            Log::error('Error in bulk delete: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            return redirect()->back()->with('error', 'An error occurred while deleting students. Please try again.');
+        }
+    }
+
+}

@@ -1,0 +1,576 @@
+@extends('layouts.app')
+
+@section('content')
+<div class="container">
+    <div class="container">
+        @php
+            $nearDueStudentBorrows = $nearDueStudentBorrows ?? collect();
+            $nearDueTeacherBorrows = $nearDueTeacherBorrows ?? collect();
+            $nearDueBorrows = $nearDueBorrows ?? $nearDueStudentBorrows->concat($nearDueTeacherBorrows);
+        @endphp
+
+        @if($nearDueBorrows->count() > 0)
+            @php
+                $isTeacherBorrow = function ($borrow): bool {
+                    return strtolower(trim((string) ($borrow->role ?? ''))) === 'teacher';
+                };
+
+                $displayBorrowerName = function ($borrow) use ($isTeacherBorrow) {
+                    $borrower = $isTeacherBorrow($borrow)
+                        ? ($borrow->teacher ?? null)
+                        : ($borrow->student ?? null);
+
+                    if (!$borrower) {
+                        return 'Unknown';
+                    }
+
+                    if ($isTeacherBorrow($borrow)) {
+                        $name = trim((string) ($borrower->name ?? ''));
+                        if ($name !== '') {
+                            return $name;
+                        }
+                    }
+
+                    $first = trim((string) ($borrower->first_name ?? ''));
+                    $last = trim((string) ($borrower->last_name ?? ''));
+                    $full = trim($first . ' ' . $last);
+                    return $full !== '' ? $full : 'Unknown';
+                };
+            @endphp
+            <div class="alert alert-warning mb-4">
+                <strong>⚠️ Upcoming Due Dates:</strong><br>
+                The following users have books due within 3 days:<br>
+                <div class="mt-2" style="max-height:50px;overflow-y:auto;padding-right:0.25rem;">
+                    <ul class="mb-0">
+                        @foreach($nearDueBorrows as $borrow)
+                            <li>
+                                <strong>{{ $displayBorrowerName($borrow) }}</strong>
+                                <span class="text-muted">({{ $isTeacherBorrow($borrow) ? 'Teacher' : 'Student' }})</span>
+                                -
+                                <span class="text-dark">{{ $borrow->book->title ?? 'Unknown Book' }}</span>
+                                <span class="text-muted">(Due: {{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }})</span>
+                            </li>
+                        @endforeach
+                    </ul>
+                </div>
+
+                <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                    <small style="color:#92400e;">
+                        Showing {{ $nearDueBorrows->count() }} due borrow(s) • Students: {{ $nearDueStudentBorrows->count() }} • {{-- Teachers: {{ $nearDueTeacherBorrows->count() }} --}}
+                    </small>
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#nearDueModal">
+                        View All
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- Upcoming Due Dates Modal -->
+            <div class="modal fade" id="nearDueModal" tabindex="-1" aria-labelledby="nearDueModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="nearDueModalLabel">Upcoming Due Dates (Next 3 Days)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="nav nav-tabs" id="nearDueTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="near-due-students-tab" data-bs-toggle="tab" data-bs-target="#near-due-students" type="button" role="tab" aria-controls="near-due-students" aria-selected="true">
+                                        Students ({{ $nearDueStudentBorrows->count() }})
+                                    </button>
+                                </li>
+                                {{-- <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="near-due-teachers-tab" data-bs-toggle="tab" data-bs-target="#near-due-teachers" type="button" role="tab" aria-controls="near-due-teachers" aria-selected="false">
+                                        Teachers ({{ $nearDueTeacherBorrows->count() }})
+                                    </button>
+                                </li> --}}
+                            </ul>
+
+                            <div class="tab-content pt-3">
+                                <div class="tab-pane fade show active" id="near-due-students" role="tabpanel" aria-labelledby="near-due-students-tab" tabindex="0">
+                                    @if($nearDueStudentBorrows->count() === 0)
+                                        <div class="text-muted">No student borrow(s) due soon.</div>
+                                    @else
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Student</th>
+                                                        <th>Book</th>
+                                                        <th>Due Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($nearDueStudentBorrows as $borrow)
+                                                        <tr>
+                                                            <td>{{ $displayBorrowerName($borrow) }}</td>
+                                                            <td>{{ $borrow->book->title ?? 'Unknown Book' }}</td>
+                                                            <td>{{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <div class="tab-pane fade" id="near-due-teachers" role="tabpanel" aria-labelledby="near-due-teachers-tab" tabindex="0">
+                                    @if($nearDueTeacherBorrows->count() === 0)
+                                        <div class="text-muted">No teacher borrow(s) due soon.</div>
+                                    @else
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Teacher</th>
+                                                        <th>Book</th>
+                                                        <th>Due Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach($nearDueTeacherBorrows as $borrow)
+                                                        <tr>
+                                                            <td>{{ $displayBorrowerName($borrow) }}</td>
+                                                            <td>{{ $borrow->book->title ?? 'Unknown Book' }}</td>
+                                                            <td>{{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <a href="{{ route('borrow.return.index') }}" class="btn btn-dark">View in Returns</a>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        @endif
+        {{-- @if($nearDueBorrows->count() > 0)
+            <div class="alert alert-warning mb-4" style="max-height: 100px; overflow-y: auto;">
+                <strong>⚠️ Upcoming Due Dates:</strong><br>
+                The following users have books due within 3 days:<br>
+                <ul class="mb-0">
+                    @foreach($nearDueBorrows as $borrow)
+                        <li>
+                            <strong>{{ $borrow->user->first_name }} {{ $borrow->user->last_name }}</strong> -
+                            <span class="text-dark">{{ $borrow->book->title ?? 'Unknown Book' }}</span>
+                            <span class="text-muted">(Due: {{ \Carbon\Carbon::parse($borrow->due_date)->format('M d, Y') }})</span>
+                        </li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif --}}
+    <!-- Top 3 Boxes (shadcn style) -->
+    <div class="d-flex gap-4 mb-4" style="flex-wrap:wrap;">
+        <div class="flex-fill min-w-0" style="min-width:200px;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
+                <div style="font-size:1.1rem;font-weight:600;color:#111;">Total Book/s</div>
+                <div style="font-size:2rem;font-weight:700;color:#00000;">{{ $totalBooks }}</div>
+            </div>
+        </div>
+        <div class="flex-fill min-w-0" style="min-width:200px;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
+                <div style="font-size:1.1rem;font-weight:600;color:#111;">Total User/s</div>
+                <div style="font-size:2rem;font-weight:700;color:#00000;">{{ $totalUsers }}</div>
+            </div>
+        </div>
+        <div class="flex-fill min-w-0" style="min-width:200px;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
+                <div style="font-size:1.1rem;font-weight:600;color:#111;">Total Borrow/s</div>
+                <div style="font-size:2rem;font-weight:700;color:#00000;">{{ $totalBorrows }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 1: Students + Chart (shadcn style) -->
+    <div class="d-flex gap-4 mb-4" style="flex-wrap:wrap;">
+        <!-- Students with Unreturned Books -->
+        <div class="flex-fill min-w-0" style="min-width:50px;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 1px 2px 0 #0001;display:flex;flex-direction:column;height:100%;">
+                <div style="border-bottom:1px solid #e5e7eb;padding:0.75rem 1.25rem;font-weight:600;font-size:1.05rem;">Students with Unreturned Book/s</div>
+                <div style="padding:1rem;max-height:400px;overflow-y:auto;">
+                    @if($studentsWithUnreturned->count() > 0)
+                        <ul style="list-style:none;padding:0;margin-bottom:1rem;">
+                            @foreach($studentsWithUnreturned as $student)
+                                <li style="border-bottom:1px solid #f3f4f6;padding:0.75rem 0;">
+                                    <div style="font-weight:600;color:#111;">{{ $student->first_name }} {{ $student->last_name }}</div>
+                                    <ul style="margin:0.5rem 0 0 1rem;padding:0;list-style:disc;">
+                                        @foreach($student->borrows->whereNull('returned_at')->sortBy(fn($borrow) => $borrow->book->title) as $borrow)
+                                            @php
+                                                $borrowedAt = null;
+                                                if ($borrow->borrowed_at) {
+                                                    $borrowedAt = \Carbon\Carbon::parse($borrow->borrowed_at);
+                                                } elseif ($borrow->created_at) {
+                                                    $borrowedAt = \Carbon\Carbon::parse($borrow->created_at);
+                                                }
+                                            @endphp
+                                            <li style="font-size:0.97rem;">
+                                                <span style="color:#00000;">📚 {{ $borrow->book->title ?? 'Unknown Book' }}</span>
+                                                <span style="color:#6b7280;font-size:0.92em;">(Borrowed: {{ $borrowedAt ? $borrowedAt->format('M d, Y') : 'N/A' }})</span>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </li>
+                            @endforeach
+                        </ul>
+                        <div class="d-flex justify-content-center">{{ $studentsWithUnreturned->links('pagination::bootstrap-5') }}</div>
+                    @else
+                        <p class="text-muted">All students have returned their books.</p>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <!-- Most Borrowed Books Chart -->
+        <div class="flex-fill min-w-0" style="min-width:340px;">
+            <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 1px 2px 0 #0001;display:flex;flex-direction:column;height:100%;">
+                <div style="border-bottom:1px solid #e5e7eb;padding:0.75rem 1.25rem;font-weight:600;font-size:1.05rem;">Most Borrowed Book/s (Top 10)</div>
+                <div style="padding:1rem;flex:1;display:flex;flex-direction:column;">
+                    <div style="height: 280px; margin-bottom: 1rem;">
+                        <canvas id="mostBorrowedBooksChart"></canvas>
+                    </div>
+                    
+                    <!-- Mini Statistics -->
+                    <div style="padding-top: 0.5rem; border-top: 1px solid #e5e7eb; font-size: 0.9rem;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+                            <div>
+                                <div style="color:#6b7280;font-size:0.8rem;">Books Borrowed</div>
+                                <div style="font-weight:700;color:#1f2937;">{{ $totalUniqueBooksBorrowed }}</div>
+                            </div>
+                            <div>
+                                <div style="color:#6b7280;font-size:0.8rem;">Avg per Book</div>
+                                <div style="font-weight:700;color:#1f2937;">{{ $avgBorrowsPerBook }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+        <div class="row g-3 mt-3">
+        <div class="col-lg-12">
+            <div class="p-3 rounded shadow-sm bg-white">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h5 class="mb-0">Monthly Activity (Last 12 Months)</h5>
+                    <div style="font-size: 0.9rem; color: #6b7280;">
+                        <span style="margin-right: 1.5rem;">
+                            <span style="display: inline-block; width: 12px; height: 12px; background-color: #3b82f6; border-radius: 2px; margin-right: 0.5rem;"></span>
+                            Total
+                        </span>
+                        <span style="margin-right: 1.5rem;">
+                            <span style="display: inline-block; width: 12px; height: 12px; background-color: #10b981; border-radius: 2px; margin-right: 0.5rem;"></span>
+                            Completed Returns
+                        </span>
+                        <span>
+                            <span style="display: inline-block; width: 12px; height: 12px; background-color: #f59e0b; border-radius: 2px; margin-right: 0.5rem;"></span>
+                            Avg Monthly
+                        </span>
+                    </div>
+                </div>
+                <div style="height:310px; margin-bottom: 1rem;">
+                    <canvas id="monthlyActivityChart"></canvas>
+                </div>
+                
+                <!-- Statistics Summary -->
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap; padding-top: 1rem; border-top: 1px solid #e5e7eb;">
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">Average Monthly</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">{{ round($avgMonthlyActivity, 1) }}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">Peak Month Activity</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">{{ $peakMonthActivity }} transactions</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">Lowest Activity</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">{{ $lowestMonthActivity }} transactions</div>
+                    </div>
+                    <div style="flex: 1; min-width: 150px;">
+                        <div style="font-size: 0.85rem; color: #6b7280; margin-bottom: 0.25rem;">Total 12-Month Activity</div>
+                        <div style="font-size: 1.5rem; font-weight: 700; color: #1f2937;">{{ array_sum($monthlyDataSafe) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Row 2: Available Books (shadcn style) -->
+    <div class="mt-4">
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 1px 2px 0 #0001;">
+            <div style="border-bottom:1px solid #e5e7eb;padding:0.75rem 1.25rem;font-weight:600;font-size:1.05rem;">Available Book/s</div>
+            <div style="padding:1rem;max-height:400px;overflow-y:auto;">
+                @if($availableBooks->count() > 0)
+                    <table style="width:100%;border-collapse:collapse;font-size:0.98rem;">
+                        <thead>
+                            <tr style="background:#f9fafb;">
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Title</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Author</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">ISBN</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Category</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Available Copies</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Total Copies</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($availableBooks as $book)
+                                <tr style="border-bottom:1px solid #f3f4f6;">
+                                    <td style="padding:0.5rem 0.75rem;">{{ $book->title }}</td>
+                                    <td style="padding:0.5rem 0.75rem;">{{ $book->author }}</td>
+                                    <td style="padding:0.5rem 0.75rem;">{{ $book->isbn }}</td>
+                                    <td style="padding:0.5rem 0.75rem;">{{ $book->category }}</td>
+                                    <td style="padding:0.5rem 0.75rem;">{{ $book->available_copies_actual ?? $book->available_copies }}</td>
+                                    <td style="padding:0.5rem 0.75rem;">{{ $book->total_copies_actual ?? $book->copies }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <div class="d-flex justify-content-center mt-3">{{ $availableBooks->links('pagination::bootstrap-5') }}</div>
+                @else
+                    <p style="color:#6b7280;margin-bottom:0;">No books available.</p>
+                @endif
+            </div>
+        </div>
+    </div>
+
+    <!-- Most Borrowed Books Detailed Table -->
+    <div class="mt-4">
+        <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;box-shadow:0 1px 2px 0 #0001;">
+            <div style="border-bottom:1px solid #e5e7eb;padding:0.75rem 1.25rem;font-weight:600;font-size:1.05rem;">Most Borrowed Book/s Details</div>
+            <div style="padding:1rem;max-height:500px;overflow-y:auto;">
+                @if(count($mostBorrowedBookDetails) > 0)
+                    <table style="width:100%;border-collapse:collapse;font-size:0.98rem;">
+                        <thead>
+                            <tr style="background:#f9fafb;">
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Rank</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Title</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:left;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Author</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:center;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Borrows</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:center;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">% of Total</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:center;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Available</th>
+                                <th style="padding:0.5rem 0.75rem;text-align:center;font-weight:600;color:#374151;border-bottom:1px solid #e5e7eb;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($mostBorrowedBookDetails as $index => $detail)
+                                <tr style="border-bottom:1px solid #f3f4f6;">
+                                    <td style="padding:0.5rem 0.75rem;text-align:center;font-weight:600;color:#0066cc;">{{ $index + 1 }}</td>
+                                    <td style="padding:0.5rem 0.75rem;font-weight:500;">{{ $detail['title'] }}</td>
+                                    <td style="padding:0.5rem 0.75rem;">{{ $detail['author'] }}</td>
+                                    <td style="padding:0.5rem 0.75rem;text-align:center;font-weight:700;color:#059669;">{{ $detail['borrows'] }}</td>
+                                    <td style="padding:0.5rem 0.75rem;text-align:center;">
+                                        <span style="background:#dbeafe;color:#0066cc;padding:0.25rem 0.5rem;border-radius:0.375rem;font-weight:500;">{{ $detail['percentage'] }}%</span>
+                                    </td>
+                                    <td style="padding:0.5rem 0.75rem;text-align:center;color:#6b7280;">{{ $detail['available_copies'] }}</td>
+                                    <td style="padding:0.5rem 0.75rem;text-align:center;font-weight:600;">{{ $detail['total_copies'] }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                @else
+                    <p style="color:#6b7280;margin-bottom:0;">No borrow data available.</p>
+                @endif
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+@php
+    $count = count($mostBorrowedBookData);
+    $borrowedColors = array_fill(0, $count, '#1e3a8a');
+@endphp
+
+<script>
+    // Most Borrowed Books Chart with enhanced styling
+    const borrowedData = @json($mostBorrowedBookData);
+    const borrowedColors = borrowedData.map((value, index) => {
+        // Color gradient: top book in bold blue, others in lighter shades
+        if (index === 0) return '#1e40af'; // Dark blue for #1
+        if (index === 1) return '#2563eb'; // Blue for #2
+        if (index === 2) return '#3b82f6'; // Light blue for #3
+        return '#60a5fa';                   // Lighter blue for rest
+    });
+    
+    const ctx = document.getElementById('mostBorrowedBooksChart') ? document.getElementById('mostBorrowedBooksChart').getContext('2d') : null;
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: @json($mostBorrowedBookLabels),
+                datasets: [{
+                    label: 'Times Borrowed',
+                    data: borrowedData,
+                    backgroundColor: borrowedColors,
+                    borderColor: borrowedColors.map(c => c),
+                    borderWidth: 1.5,
+                    borderRadius: 8,
+                    maxBarThickness: 45
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { 
+                        beginAtZero: true, 
+                        ticks: { precision: 0 },
+                        title: {
+                            display: true,
+                            text: 'Number of Borrows'
+                        }
+                    },
+                    y: { 
+                        ticks: { autoSkip: false }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { 
+                        callbacks: { 
+                            label: function(context) { 
+                                const percentage = ((context.parsed.x / @json(array_sum($mostBorrowedBookData))) * 100).toFixed(1);
+                                return context.dataset.label + ': ' + context.parsed.x + ' (' + percentage + '%)'; 
+                            } 
+                        } 
+                    }
+                }
+            }
+        });
+    }
+
+    // Monthly Activity with enhanced data
+    const monthlyCtx = document.getElementById('monthlyActivityChart')?.getContext('2d');
+    if(monthlyCtx){
+        const avgValue = @json($avgMonthlyActivity);
+        
+        // Create average line data
+        const avgData = Array(@json($monthlyLabelsSafe).length).fill(avgValue);
+        
+        new Chart(monthlyCtx, {
+            type: 'line',
+            data: {
+                labels: @json($monthlyLabelsSafe),
+                datasets: [
+                    {
+                        label: 'Total Transactions',
+                        data: @json($monthlyDataSafe),
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                        borderWidth: 2.5,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6
+                    },
+                    {
+                        label: 'Completed Returns',
+                        data: @json($monthlyCompletedData),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.05)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#10b981',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1.5,
+                        pointHoverRadius: 5
+                    },
+                    {
+                        label: 'Average Monthly Activity',
+                        data: avgData,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0)',
+                        borderWidth: 2.5,
+                        borderDash: [10, 5],
+                        tension: 0,
+                        fill: false,
+                        pointRadius: 0,
+                        pointHoverRadius: 0
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Transactions'
+                        },
+                        ticks: {
+                            precision: 0
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Month'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12
+                            },
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        titleFont: { size: 13, weight: 'bold' },
+                        bodyFont: { size: 12 },
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label;
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                label += Math.round(context.parsed.y * 10) / 10;
+                                return label;
+                            },
+                            afterLabel: function(context) {
+                                if (context.dataset.label === 'Total Transactions' && context.parsed.y > 0) {
+                                    const percentage = ((context.parsed.y / @json(array_sum($monthlyDataSafe))) * 100).toFixed(1);
+                                    return `(${percentage}% of total)`;
+                                }
+                                return '';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+</script>
+</div>
+@endsection
