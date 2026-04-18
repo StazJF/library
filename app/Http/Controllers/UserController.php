@@ -210,11 +210,12 @@ class UserController extends Controller
         }
     }
 
-    public function show(User $user)
+    public function show(Request $request, User $user)
     {
         try {
-            $origin = request()->query('origin'); // personal|distribution|null
-            $status = request()->query('status'); // lost|damaged|repaired|found|issues|null
+            $origin = $request->query('origin'); // personal|distribution|null
+            $status = $request->query('status'); // lost|damaged|repaired|found|issues|null
+            $search = $request->query('search');
 
             $origin = in_array($origin, ['personal', 'distribution'], true) ? $origin : null;
             $status = in_array($status, ['lost', 'damaged', 'repaired', 'found', 'issues'], true) ? $status : null;
@@ -228,6 +229,19 @@ class UserController extends Controller
                     },
                 ])
                 ->latest('borrowed_at');
+
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $q->whereHas('book', function($bookQ) use ($search) {
+                        $bookQ->where('title', 'like', "%{$search}%")
+                              ->orWhere('author', 'like', "%{$search}%");
+                    })
+                    ->orWhere('copy_number', 'like', "%{$search}%")
+                    ->orWhereHas('bookCopy', function($copyQ) use ($search) {
+                        $copyQ->where('control_number', 'like', "%{$search}%");
+                    });
+                });
+            }
 
             if ($origin) {
                 $query->where('origin', $origin);
@@ -306,6 +320,7 @@ class UserController extends Controller
             $filterState = [
                 'origin' => $origin ?? 'all',
                 'status' => $status ?? 'all',
+                'search' => $search ?? '',
             ];
 
             return view('users.show', compact('user', 'borrows', 'totalBorrows', 'filterState', 'statusCounts'));
