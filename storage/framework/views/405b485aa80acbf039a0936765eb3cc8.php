@@ -45,10 +45,135 @@
     .badge {
         transition: all 0.2s ease;
     }
+
+    /* Reports navigator */
+    .reports-nav {
+        position: sticky;
+        top: 72px; /* sits below the app topbar */
+        z-index: 1020;
+        background: rgba(255, 255, 255, 0.96);
+        backdrop-filter: blur(8px);
+        border: 1px solid #e5e7eb;
+        border-radius: 0.75rem;
+        padding: 0.65rem 0.75rem;
+        box-shadow: 0 .25rem .75rem rgba(0,0,0,.05);
+    }
+    .reports-nav .nav-pills .nav-link {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 0.65rem;
+        color: #111;
+        font-weight: 600;
+        padding: 0.45rem 0.8rem;
+        transition: background-color 0.12s ease, color 0.12s ease, transform 0.12s ease;
+    }
+    .reports-nav .nav-pills .nav-link:not(.active):hover {
+        background: #e0f2fe;
+        color: #2563eb;
+    }
+    .reports-nav .nav-pills .nav-link:not(.active):active {
+        transform: translateY(1px);
+    }
+    .reports-nav .nav-pills .nav-link:focus-visible {
+        outline: 2px solid #111;
+        outline-offset: 2px;
+    }
+    .reports-nav .nav-pills .nav-link.active {
+        background: #111;
+        color: #fff;
+    }
+    .report-section {
+        scroll-margin-top: 140px; /* offset for sticky nav + topbar */
+    }
+
+    /* Unified hover effects for all sections */
+    #report-overview > .row > .col-md-3 > div,
+    #report-charts > .row > [class*="col-"] > div,
+    #report-transactions .table tbody tr,
+    #report-circulation .report-stat-card {
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    background-color 0.2s ease;
+    }
+
+    /* Overview stat cards hover */
+    #report-overview > .row > .col-md-3:hover > div {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        background-color: #f5f5f5 !important;
+    }
+
+    /* Charts section cards hover */
+    #report-charts > .row > [class*="col-"]:hover > div {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        background-color: #f5f5f5 !important;
+    }
+
+    /* Transactions table hover */
+    #report-transactions .table tbody tr:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        background-color: #f5f5f5 !important;
+    }
+
+    /* Circulation stat cards hover - match Overview/Charts pattern */
+    #report-circulation .report-stat-card {
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), 
+                    box-shadow 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    background-color 0.2s ease;
+    }
+    #report-circulation .col-md-2:hover .report-stat-card {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+        background-color: #f5f5f5 !important;
+    }
+    #report-circulation .col-md-2:focus-visible .report-stat-card {
+        outline: 2px solid #111;
+        outline-offset: 2px;
+    }
 </style>
 <div class="container py-4">
     <h1 class="h4 mb-5">Reports & Analytics</h1>
 
+    <div class="reports-nav mb-4">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="d-none d-lg-block">
+                <ul class="nav nav-pills gap-2" id="reportsNavPills">
+                    <li class="nav-item"><a class="nav-link active" href="#report-overview" data-report-target="overview">Overview</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#report-charts" data-report-target="charts">Charts</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#report-transactions" data-report-target="transactions">Transactions</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#report-circulation" data-report-target="circulation">Circulation</a></li>
+                </ul>
+            </div>
+            <div class="d-lg-none w-100">
+                <label class="form-label small text-muted mb-1">Jump to</label>
+                <select class="form-select form-select-sm" id="reportsJumpSelect">
+                    <option value="#report-overview">Overview</option>
+                    <option value="#report-charts">Charts</option>
+                    <option value="#report-transactions">Transactions</option>
+                    <option value="#report-circulation">Circulation</option>
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <div class="d-flex flex-column">
+                    <label class="form-label small text-muted mb-2 d-none d-md-block">Show</label>
+                    <select class="form-select form-select-sm" id="reportsSectionFilter" style="min-width: 180px;">
+                        <option value="all" selected>All Sections</option>
+                        <option value="overview">Overview</option>
+                        <option value="charts">Charts</option>
+                        <option value="transactions">Transactions</option>
+                        <option value="circulation">Circulation</option>
+                    </select>
+                </div>
+                <a href="#report-overview" class="btn btn-sm btn-outline-secondary d-none d-md-inline-flex align-self-end">Top</a>
+            </div>
+        </div>
+    </div>
+
+    <section id="report-overview" class="report-section">
     <div class="row g-3 mb-4">
         <div class="col-md-3">
             <div class="p-3 rounded shadow-sm bg-white">
@@ -86,7 +211,9 @@
             </div>
         </div>
     </div>
+    </section>
 
+    <section id="report-charts" class="report-section">
     <div class="row g-3">
         <div class="col-lg-7">
             <div class="p-3 rounded shadow-sm bg-white h-100">
@@ -106,10 +233,12 @@
             </div>
         </div>
     </div>
+    </section>
 
     
 
     <!-- Detailed Transactions Section -->
+    <section id="report-transactions" class="report-section">
     <div class="row g-3 mt-4">
         <div class="col-lg-12">
             <div class="p-3 rounded shadow-sm bg-white">
@@ -276,8 +405,10 @@
             </div>
         </div>
     </div>
+    </section>
 
     <!-- Books Circulation Report Section -->
+    <section id="report-circulation" class="report-section">
     <div class="row g-3 mt-4">
         <div class="col-lg-12">
             <div class="p-3 rounded shadow-sm bg-white">
@@ -286,46 +417,58 @@
                 <!-- Books Circulation Statistics Cards -->
                 <div class="row g-3">
                     <div class="col-md-2">
-                        <div class="p-3 rounded border-start border-4 border-primary bg-light">
-                            <div class="small text-muted">Total Books</div>
-                            <div class="h4 mb-0 text-primary"><?php echo e($totalBooks ?? 0); ?></div>
-                            <div class="small text-muted">In system</div>
-                        </div>
+                        <a href="<?php echo e(route('books.catalog')); ?>" class="text-decoration-none d-block">
+                            <div class="p-3 rounded border-start border-4 border-primary bg-light report-stat-card">
+                                <div class="small text-muted">Total Books</div>
+                                <div class="h4 mb-0 text-primary"><?php echo e($totalBooks ?? 0); ?></div>
+                                <div class="small text-muted">In system</div>
+                            </div>
+                        </a>
                     </div>
                     <div class="col-md-2">
-                        <div class="p-3 rounded border-start border-4 border-success bg-light">
-                            <div class="small text-muted">Available</div>
-                            <div class="h4 mb-0 text-success"><?php echo e($availableBooks ?? 0); ?></div>
-                            <div class="small text-muted">Ready to borrow</div>
-                        </div>
+                        <a href="<?php echo e(route('books.catalog')); ?>" class="text-decoration-none d-block">
+                            <div class="p-3 rounded border-start border-4 border-success bg-light report-stat-card">
+                                <div class="small text-muted">Available</div>
+                                <div class="h4 mb-0 text-success"><?php echo e($availableBooks ?? 0); ?></div>
+                                <div class="small text-muted">Ready to borrow</div>
+                            </div>
+                        </a>
                     </div>
                     <div class="col-md-2">
-                        <div class="p-3 rounded border-start border-4 border-info bg-light">
-                            <div class="small text-muted">Currently Borrowed</div>
-                            <div class="h4 mb-0 text-info"><?php echo e($borrowedBooks ?? 0); ?></div>
-                            <div class="small text-muted">In circulation</div>
-                        </div>
+                        <a href="<?php echo e(route('borrow.return.index')); ?>" class="text-decoration-none d-block">
+                            <div class="p-3 rounded border-start border-4 border-info bg-light report-stat-card">
+                                <div class="small text-muted">Currently Borrowed</div>
+                                <div class="h4 mb-0 text-info"><?php echo e($borrowedBooks ?? 0); ?></div>
+                                <div class="small text-muted">In circulation</div>
+                            </div>
+                        </a>
                     </div>
                     <div class="col-md-2">
-                        <div class="p-3 rounded border-start border-4 border-warning bg-light">
-                            <div class="small text-muted">Damaged</div>
-                            <div class="h4 mb-0 text-warning"><?php echo e($damagedBooks ?? 0); ?></div>
-                            <div class="small text-muted">Needs repair</div>
-                        </div>
+                        <a href="<?php echo e(route('books.lost-damage')); ?>" class="text-decoration-none d-block">
+                            <div class="p-3 rounded border-start border-4 border-warning bg-light report-stat-card">
+                                <div class="small text-muted">Damaged</div>
+                                <div class="h4 mb-0 text-warning"><?php echo e($damagedBooks ?? 0); ?></div>
+                                <div class="small text-muted">Needs repair</div>
+                            </div>
+                        </a>
                     </div>
                     <div class="col-md-2">
-                        <div class="p-3 rounded border-start border-4 border-danger bg-light">
-                            <div class="small text-muted">Lost</div>
-                            <div class="h4 mb-0 text-danger"><?php echo e($lostBooks ?? 0); ?></div>
-                            <div class="small text-muted">Not recovered</div>
-                        </div>
+                        <a href="<?php echo e(route('books.lost-damage')); ?>" class="text-decoration-none d-block">
+                            <div class="p-3 rounded border-start border-4 border-danger bg-light report-stat-card">
+                                <div class="small text-muted">Lost</div>
+                                <div class="h4 mb-0 text-danger"><?php echo e($lostBooks ?? 0); ?></div>
+                                <div class="small text-muted">Not recovered</div>
+                            </div>
+                        </a>
                     </div>
                     <div class="col-md-2">
-                        <div class="p-3 rounded border-start border-4 border-secondary bg-light">
-                            <div class="small text-muted">Repaired</div>
-                            <div class="h4 mb-0 text-secondary"><?php echo e($repairedBooks ?? 0); ?></div>
-                            <div class="small text-muted">Back in stock</div>
-                        </div>
+                        <a href="<?php echo e(route('books.lost-damage')); ?>" class="text-decoration-none d-block">
+                            <div class="p-3 rounded border-start border-4 border-secondary bg-light report-stat-card">
+                                <div class="small text-muted">Repaired</div>
+                                <div class="h4 mb-0 text-secondary"><?php echo e($repairedBooks ?? 0); ?></div>
+                                <div class="small text-muted">Back in stock</div>
+                            </div>
+                        </a>
                     </div>
                 </div>
 
@@ -430,7 +573,70 @@
             </div>
         </div>
     </div>
+    </section>
 </div>
+
+<script>
+    (function () {
+        // Mobile jump select
+        const jump = document.getElementById('reportsJumpSelect');
+        if (jump) {
+            jump.addEventListener('change', function () {
+                const v = jump.value;
+                if (v) location.hash = v;
+            });
+        }
+
+        // Section show/hide filter
+        const filter = document.getElementById('reportsSectionFilter');
+        const sections = [
+            { key: 'overview', el: document.getElementById('report-overview') },
+            { key: 'charts', el: document.getElementById('report-charts') },
+            { key: 'transactions', el: document.getElementById('report-transactions') },
+            { key: 'circulation', el: document.getElementById('report-circulation') },
+        ].filter(s => s.el);
+
+        function applyFilter(value) {
+            sections.forEach(s => {
+                if (value === 'all' || s.key === value) {
+                    s.el.classList.remove('d-none');
+                } else {
+                    s.el.classList.add('d-none');
+                }
+            });
+        }
+
+        if (filter) {
+            filter.addEventListener('change', function () {
+                applyFilter(filter.value);
+            });
+        }
+
+        // Keep nav pills active based on scroll position (best-effort)
+        const pills = document.querySelectorAll('#reportsNavPills a[data-report-target]');
+        function setActive(targetKey) {
+            pills.forEach(a => {
+                a.classList.toggle('active', a.getAttribute('data-report-target') === targetKey);
+            });
+        }
+        function onScroll() {
+            // Only when all sections are visible; otherwise keep selection as-is.
+            if (filter && filter.value !== 'all') return;
+            const y = window.scrollY + 160;
+            let current = 'overview';
+            for (const s of sections) {
+                const top = s.el.offsetTop;
+                if (y >= top) current = s.key;
+            }
+            setActive(current);
+        }
+        window.addEventListener('scroll', onScroll, { passive: true });
+        onScroll();
+
+        // Initial state
+        applyFilter('all');
+    })();
+</script>
 <?php
     // Monochrome defaults for a clean black & white dashboard look
     $popularLabelsSafe = $popularLabels ?? [];
