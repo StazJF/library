@@ -16,7 +16,15 @@
 /public/build
 /public/hot
 /public/storage
+/bootstrap/cache/*.php
+!/bootstrap/cache/.gitignore
 /storage/*.key
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/testing
+/storage/framework/views
+/storage/logs
+!/storage/logs/.gitignore
 /storage/pail
 /vendor
 Homestead.json
