@@ -60,7 +60,8 @@
 
                 <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
                     <small style="color:#92400e;">
-                        Showing <?php echo e($nearDueBorrows->count()); ?> due borrow(s) • Students: <?php echo e($nearDueStudentBorrows->count()); ?>  
+                        Showing <?php echo e($nearDueBorrows->count()); ?> due borrow(s) • Students: <?php echo e($nearDueStudentBorrows->count()); ?> • Teachers: <?php echo e($nearDueTeacherBorrows->count()); ?>
+
                     </small>
                     <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#nearDueModal">
                         View All
@@ -84,7 +85,11 @@
                                         Students (<?php echo e($nearDueStudentBorrows->count()); ?>)
                                     </button>
                                 </li>
-                                
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="near-due-teachers-tab" data-bs-toggle="tab" data-bs-target="#near-due-teachers" type="button" role="tab" aria-controls="near-due-teachers" aria-selected="false">
+                                        Teachers (<?php echo e($nearDueTeacherBorrows->count()); ?>)
+                                    </button>
+                                </li>
                             </ul>
 
                             <div class="tab-content pt-3">

@@ -455,6 +455,8 @@ REDIS_PASSWORD=redis_password
 # Session
 SESSION_DRIVER=database
 SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
 SESSION_LIFETIME=1440
 
 # Queue
@@ -490,6 +492,8 @@ APP_ENV=local
 APP_DEBUG=false          # Never true in production!
 APP_ENV=production
 SESSION_ENCRYPT=true
+SESSION_SECURE_COOKIE=true
+SESSION_SAME_SITE=lax
 ```
 
 ### General Rules
@@ -505,6 +509,7 @@ SESSION_ENCRYPT=true
 
 3. **Never commit .env to Git:**
    - `.env` is in `.gitignore`
+   - `.env.*` files are ignored except `.env.example`
    - Share `.env.example` instead with sample values
 
 4. **Database User:** Create limited-privilege user in production

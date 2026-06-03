@@ -13,7 +13,7 @@ use App\Http\Controllers\Auth\AdminSetupController;
 use Illuminate\Support\Facades\Auth;
 
 // ------------------ LOGIN ROUTES ------------------
-Route::get('/', fn() => redirect()->route('login'));
+Route::redirect('/', '/login');
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
 Route::post('/login', [LoginController::class, 'login'])->name('login.submit');
 Route::get('/logout', [LoginController::class, 'logout'])->name('logout');

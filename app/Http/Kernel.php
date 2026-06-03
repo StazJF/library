@@ -5,7 +5,6 @@ namespace App\Http;
 use Illuminate\Foundation\Http\Kernel as HttpKernel;
 
 // Core middleware
-use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance;
 use Illuminate\Foundation\Http\Middleware\ValidatePostSize;
 use Illuminate\Foundation\Http\Middleware\TrimStrings;
@@ -24,6 +23,8 @@ use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
 
 // Custom middleware
 use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\SecurityHeaders;
+use App\Http\Middleware\TrustProxies;
 
 class Kernel extends HttpKernel
 {
@@ -32,6 +33,7 @@ class Kernel extends HttpKernel
      */
     protected $middleware = [
         TrustProxies::class,
+        SecurityHeaders::class,
         \Illuminate\Http\Middleware\HandleCors::class,
         PreventRequestsDuringMaintenance::class,
         ValidatePostSize::class,
@@ -49,7 +51,6 @@ class Kernel extends HttpKernel
             StartSession::class,
             ShareErrorsFromSession::class,
             VerifyCsrfToken::class,
-            Authenticate::class,
         ],
 
         'api' => [
