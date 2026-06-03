@@ -62,7 +62,7 @@ This project is a comprehensive web-based library management system designed for
 - **Status Badges:** Visual indicators with color coding (red for damaged, blue for repaired, green for found)
 - Sources: `app/Models/LostDamagedItem.php`, `app/Models/Borrow.php`, `resources/views/reports.blade.php`
 
-#### 5. **Advanced Reporting**
+#### 5. **Advanced Reporting*
 - **All Transactions Report:** Comprehensive table of all borrowing transactions
 - **Filtering:** Filter by status (Active, Completed, All)
 - **Sorting:** Sort by date borrowed, due date, return date, or transaction ID
