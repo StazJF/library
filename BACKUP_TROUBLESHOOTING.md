@@ -38,7 +38,7 @@ Run this to identify the exact problem:
 
 ### Step 1: Run the Diagnostic Script
 
-1. Navigate to `C:\Users\jimmu\Herd\library`
+1. Navigate to `C:\Users\<you>\Herd\library`
 2. Right-click **BACKUP_DIAGNOSTICS.bat**
 3. Select **Run as administrator**
 4. It will test each component and show results
@@ -59,7 +59,7 @@ This checks:
 **Open PowerShell as Administrator:**
 
 ```powershell
-cd C:\Users\jimmu\Herd\library
+cd C:\Users\<you>\Herd\library
 php artisan backup:database
 ```
 
@@ -151,7 +151,7 @@ C:\xampp\php\php.exe artisan backup:database
 
 **Fix:**
 ```powershell
-mkdir "C:\Users\jimmu\Herd\library\storage\app\backups"
+mkdir "C:\Users\<you>\Herd\library\storage\app\backups"
 ```
 
 ---
@@ -169,6 +169,19 @@ mkdir "C:\Users\jimmu\Herd\library\storage\app\backups"
 6. Click **Apply** → **OK**
 
 ---
+
+### Issue 5: Extracted `.sql` file is empty (0 KB)
+
+Open the ZIP with **7-Zip** and check `backup_info.txt` inside the archive.
+
+- If `SQL size bytes` in `backup_info.txt` is **0**:
+  - The dump was generated as empty (export failed or the DB truly has no tables/data).
+  - Check `storage/logs/backup-task.log` (scheduler) or `storage/logs/laravel.log` (app) for errors.
+  - Re-check `.env` MySQL settings and confirm MySQL is running.
+
+- If `SQL size bytes` in `backup_info.txt` is **greater than 0**, but the extracted file is empty:
+  - You likely extracted with the **wrong password** or a tool that failed extraction.
+  - In 7-Zip, use **Test** on the archive, then extract again to a new empty folder and re-enter the password.
 
 ## 🎯 Fix Task Scheduler Configuration
 
@@ -211,7 +224,7 @@ artisan backup:database --retention=30
 
 **Start in (optional):**
 ```
-C:\Users\jimmu\Herd\library
+C:\Users\<you>\Herd\library
 ```
 
 Click **OK** twice
@@ -253,7 +266,7 @@ Wait 5-10 seconds, then refresh browser to Utilities → Database Backups
 ### Check 2: Backup Directory
 
 ```powershell
-ls C:\Users\jimmu\Herd\library\storage\app\backups\
+ls C:\Users\<you>\Herd\library\storage\app\backups\
 ```
 
 Should show recent backup files like:
@@ -290,7 +303,7 @@ If set up correctly, your Task Scheduler should have:
 | **Trigger** | Daily at 2:00 AM (or your chosen time) |
 | **Program** | `C:\xampp\php\php.exe` (your PHP path) |
 | **Arguments** | `artisan backup:database --retention=30` |
-| **Start in** | `C:\Users\jimmu\Herd\library` |
+| **Start in** | `C:\Users\<you>\Herd\library` |
 | **Run with highest privileges** | ✓ Checked |
 | **Repeat task every** | Optional (not needed for daily) |
 

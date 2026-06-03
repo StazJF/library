@@ -25,7 +25,7 @@ return new class extends Migration
                 ->constrained('book_copies')
                 ->nullOnDelete();
 
-            $table->enum('result_status', ['VERIFIED', 'MISSING', 'DAMAGED', 'MISPLACED'])
+            $table->enum('result_status', ['VERIFIED', 'MISSING', 'DAMAGED', 'MISPLACED', 'BORROWED', 'REPLACED'])
                 ->nullable();
 
             // For MISPLACED or general context ("Found at shelf X")
@@ -51,4 +51,3 @@ return new class extends Migration
         Schema::dropIfExists('audit_logs');
     }
 };
-

@@ -4,10 +4,9 @@
     <div class="container-fluid">
         <style>
             /* Compact neutral UI */
-            .container.py-5 { max-width: 1400px; width: 100%; }
-            .card { border-radius: .6rem; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04); border: 1px solid #e9f0fb; background: #ffffff; }
+             .container.py-5 { max-width: 85%; width: 100%; }
+            .card { border-radius: .6rem; box-shadow: 0 10px 12px rgba(15, 23, 42, 0.04); border: 1px solid #e9f0fb; background: #ffffff; width: 100%; }
             .card-body { padding: 1.5rem !important; }
-            h4 { color: #0f172a; font-weight:600; font-size:1.05rem; margin-bottom:.35rem; }
             p.text-muted { color: #64748b; margin-bottom:.6rem; font-size:.9rem; }
             .form-label { font-size: .86rem; font-weight:500; color:#0f172a; }
             .form-control, .form-select { border-radius: .55rem; border: 1px solid #eaf3ff; background: #fbfdff; transition: all .12s ease; box-shadow: none; padding:.85rem 1.05rem; font-size:1.08rem; }
@@ -21,24 +20,27 @@
             .btn-outline-primary.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
             #cartList ul { padding-left: 0; margin:0; }
             #cartList li { transition: background .12s ease, transform .12s ease; padding: .45rem; border-radius: .45rem; margin-bottom: .4rem; background: #fff; border:1px solid #f4f7fb; display:flex; justify-content:space-between; align-items:center; }
-            .nav-pills { background: #f1f5f9; border-radius: .85rem; padding: .35rem; gap: .35rem; }
-            .nav-pills .nav-link { color: #0f172a; border-radius: .7rem; font-weight: 500; padding: .6rem 1rem; }
+            
+            .nav-pills { background: #f1f5f9; border-radius: .85rem; padding: .35rem; gap: .35rem; width: 100%; display: flex; }
+            .nav-item { flex: 1; }
+            .nav-pills .nav-link { color: #0f172a; border-radius: .7rem; font-weight: 500; padding: .6rem 1rem; width: 100%; text-align: center; }
             .nav-pills .nav-link.active { background-color: #0f172a; color: #fff; }
+            
             #cartList li:hover { background: #f8fbff; transform: translateY(-1px); }
             #cartList .btn-outline-danger { border-color: transparent; color: #ef4444; background: transparent; padding: .2rem .45rem; }
             .badge.bg-secondary { background: #64748b; color: #fff; padding: .3rem .45rem; border-radius: .45rem; font-size:.85rem; }
             .section-block { background: #f8fafc; border: 1px solid #eef2f7; border-radius: .9rem; padding: 1rem; }
             .section-title { font-weight: 750; color: #0f172a; font-size: .98rem; margin: 0; }
-            .section-subtitle { color: #64748b; font-size: .9rem; margin: .15rem 0 0; }
+            .section-subtitle { color: #64748b; font-size: .9rem; margin: .15rem 0 0; } 
             /* Select2 tweaks */ 
-            .select2-container .select2-selection--single { height: calc(1.75em + 1.7rem + 2px); border-radius: .55rem; border:1px solid #eaf3ff; background:#fbfdff; font-size:1.08rem; display:flex; align-items:center; padding: 0 1.05rem; }
+             .select2-container .select2-selection--single { height: calc(1.75em + 1.7rem + 2px); border-radius: .55rem; border:1px solid #eaf3ff; background:#fbfdff; font-size:1.08rem; display:flex; align-items:center; padding: 0 1.05rem; }
             .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 1.75; color: #0f172a; padding-left: 0; padding-right: 2.4rem; }
             .select2-container--default .select2-selection--single .select2-selection__arrow { height: 100%; right: .45rem; }
             .select2-container--default .select2-selection--single .select2-selection__placeholder { color: #64748b; }
             .select2-container { width: 100% !important; }
-            .btn-add-book { min-width: 110px; white-space: normal; }
+            .btn-add-book { min-width: 110px; white-space: normal; } 
             /* Larger dropdowns for book selection */
-            .select2-large-user .select2-selection--single,
+             .select2-large-user .select2-selection--single,
             .select2-large-book .select2-selection--single,
             .select2-large-ctrl .select2-selection--single {
                 height: 3.5rem !important;
@@ -56,31 +58,40 @@
             .select2-large-book .select2-selection__arrow,
             .select2-large-ctrl .select2-selection__arrow {
                 height: 3.5rem !important;
-            }
+            } 
             /* Larger confirm button */
-            #confirmBtn {
+             #confirmBtn {
                 padding: 1rem 2rem !important;
                 font-size: 1.15rem !important;
                 font-weight: 400;
                 min-height: 3rem;
-            }
+            } 
             @media (max-width: 767px) { .container.py-5 { padding-left: 1rem; padding-right:1rem; } .card-body { padding: .85rem !important; } }
         </style>
         {{-- Header Section --}}
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        {{-- <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
             <div>
-                <h3 class="mb-1">Book Borrowing</h3>
+                <h4 class="mb-1">Borrow Books</h4>
                 <p class="text-muted mb-0">Issue books to students and teachers</p>
             </div>
             <div class="d-flex align-items-center">
                 <a href="{{ route('borrow.distribute') }}" class="btn btn-sm btn-dark">Bulk Distribution</a>
             </div>
-        </div>
+        </div> --}}
 
         <div class="row justify-content-center">
             <div class="container py-5">
                 <div class="card shadow-sm">
                     <div class="card-body p-4">
+                        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+                            <div>
+                                <h4 class="mb-1">Borrow Books</h4>
+                                <p class="text-muted mb-0">Issue books to students and teachers</p>
+                            </div>
+                            <div class="d-flex align-items-center">
+                                <a href="{{ route('borrow.distribute') }}" class="btn btn-sm btn-dark">Bulk Distribution</a>
+                            </div>
+                        </div>
 
                         {{-- Alert Messages --}}
                         @if ($errors->any())

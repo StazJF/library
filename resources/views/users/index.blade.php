@@ -30,7 +30,10 @@
 @section('content')
 <div class="container-fluid py-4">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-        <h1 class="h2 mb-0">Students List</h1>
+        <div>
+            <h2 class="mb-1">Students List</h2>
+            <p class="text-muted mb-0">Manage student records and their borrowing status.</p>
+        </div>
         <div class="d-flex gap-2">
             <a href="{{ route('users.print', request()->query()) }}" target="_blank" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-2"></i>Print All

@@ -4,10 +4,10 @@
 <div class="container">
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
         <div>
-            <h3 class="mb-0">Audit Scanning</h3>
+            <h3 class="mb-0">Audit Inspecting</h3>
             <div class="text-muted small">
                 SY {{ $session->school_year }}
-                • Started {{ $session->started_at?->format('M d, Y h:i A') }}
+                • Started {{ $session->started_at?->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}
                 • Status: <span class="badge bg-{{ $session->status === 'OPEN' ? 'warning' : 'success' }}">{{ $session->status }}</span>
             </div>
         </div>
@@ -21,14 +21,20 @@
         @php $lvl = session('audit_scan_level', 'success'); @endphp
         <div class="alert alert-{{ $lvl }}">{{ session('audit_scan_message') }}</div>
     @endif
+    @if (session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert-danger">{{ $errors->first() }}</div>
     @endif
 
     <div class="row g-3">
         <div class="col-lg-5">
             <div class="card shadow-sm">
-                <div class="card-header bg-white fw-semibold">Scan / Input Control Number</div>
+                <div class="card-header bg-white fw-semibold">Inspect / Input Control Number</div>
                 <div class="card-body">
                     @if($session->status !== 'OPEN')
                         <div class="alert alert-info mb-0">
@@ -37,65 +43,70 @@
                     @else
                         <form method="POST" action="{{ route('audit.scan', $session) }}">
                             @csrf
-                            <label class="form-label">Control Number (barcode)</label>
+                            <label class="form-label">Control Number </label>
                             <input
                                 id="controlNumberInput"
                                 type="text"
                                 name="control_number"
                                 class="form-control form-control-lg @error('control_number') is-invalid @enderror"
-                                placeholder="Scan here..."
+                                placeholder="Type here..."
                                 autocomplete="off"
                                 autofocus
                             />
                             @error('control_number')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
-                            <div class="form-text">Tip: most barcode scanners type then press Enter automatically.</div>
+                            <div class="form-text"></div>
                         </form>
 
                         @php $lastCn = session('audit_last_control_number'); @endphp
                         @if($lastCn)
                             <hr>
                             <div class="d-flex align-items-center justify-content-between">
-                                <div class="fw-semibold">Last scanned</div>
+                                <div class="fw-semibold">Last inspected</div>
                                 <div class="text-muted small">{{ $lastCn }}</div>
                             </div>
-                            <div class="mt-2 d-flex flex-wrap gap-2">
-                                <form method="POST" action="{{ route('audit.status', $session) }}">
-                                    @csrf
-                                    <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
-                                    <input type="hidden" name="control_number" value="{{ $lastCn }}">
-                                    <input type="hidden" name="result_status" value="VERIFIED">
-                                    <button class="btn btn-sm btn-outline-success" type="submit">Mark Verified</button>
-                                </form>
+                            @php $isAdmin = (auth()->user()->role ?? null) === 'admin'; @endphp
+                            @if($isAdmin)
+                                <div class="mt-2 d-flex flex-wrap gap-2">
+                                    <form method="POST" action="{{ route('audit.status', $session) }}">
+                                        @csrf
+                                        <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
+                                        <input type="hidden" name="control_number" value="{{ $lastCn }}">
+                                        <input type="hidden" name="result_status" value="VERIFIED">
+                                        <button class="btn btn-sm btn-outline-success" type="submit">Mark Verified</button>
+                                    </form>
 
-                                <form method="POST" action="{{ route('audit.status', $session) }}">
-                                    @csrf
-                                    <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
-                                    <input type="hidden" name="control_number" value="{{ $lastCn }}">
-                                    <input type="hidden" name="result_status" value="DAMAGED">
-                                    <input type="hidden" name="remarks" value="Damaged during audit">
-                                    <button class="btn btn-sm btn-outline-danger" type="submit">Mark Damaged</button>
-                                </form>
+                                    <form method="POST" action="{{ route('audit.status', $session) }}">
+                                        @csrf
+                                        <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
+                                        <input type="hidden" name="control_number" value="{{ $lastCn }}">
+                                        <input type="hidden" name="result_status" value="DAMAGED">
+                                        <input type="hidden" name="remarks" value="Damaged during audit">
+                                        <button class="btn btn-sm btn-outline-danger" type="submit">Mark Damaged</button>
+                                    </form>
 
-                                <form method="POST" action="{{ route('audit.status', $session) }}">
-                                    @csrf
-                                    <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
-                                    <input type="hidden" name="control_number" value="{{ $lastCn }}">
-                                    <input type="hidden" name="result_status" value="MISPLACED">
-                                    <input type="hidden" name="remarks" value="Misplaced during audit">
-                                    <button class="btn btn-sm btn-outline-warning" type="submit">Mark Misplaced</button>
-                                </form>
+                                    <form method="POST" action="{{ route('audit.status', $session) }}">
+                                        @csrf
+                                        <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
+                                        <input type="hidden" name="control_number" value="{{ $lastCn }}">
+                                        <input type="hidden" name="result_status" value="BORROWED">
+                                        <input type="hidden" name="remarks" value="Borrowed during audit">
+                                        <button class="btn btn-sm btn-outline-info" type="submit">Mark Borrowed</button>
+                                    </form>
 
-                                <form method="POST" action="{{ route('audit.status', $session) }}">
-                                    @csrf
-                                    <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
-                                    <input type="hidden" name="control_number" value="{{ $lastCn }}">
-                                    <input type="hidden" name="result_status" value="MISSING">
-                                    <input type="hidden" name="remarks" value="Marked missing manually">
-                                    <button class="btn btn-sm btn-outline-dark" type="submit">Mark Missing</button>
-                                </form>
-                            </div>
+                                    <form method="POST" action="{{ route('audit.status', $session) }}">
+                                        @csrf
+                                        <input type="hidden" name="redirect_to" value="{{ route('audit.show', $session) }}">
+                                        <input type="hidden" name="control_number" value="{{ $lastCn }}">
+                                        <input type="hidden" name="result_status" value="MISSING">
+                                        <input type="hidden" name="remarks" value="Marked missing manually">
+                                        <button class="btn btn-sm btn-outline-dark" type="submit">Mark Missing</button>
+                                    </form>
+                                </div>
+                            @else
+                                <div class="text-muted small mt-2">Final audit actions are restricted to Admin accounts.</div>
+                            @endif
                             <div class="form-text mt-2">
                                 For detailed notes (damage description / found location), use the Summary page.
                             </div>
@@ -109,11 +120,12 @@
                 <div class="card-body">
                     <div class="row g-2">
                         <div class="col-6"><div class="text-muted small">Total in scope</div><div class="fs-5 fw-semibold">{{ $summary['total_in_scope'] }}</div></div>
-                        <div class="col-6"><div class="text-muted small">Scanned</div><div class="fs-5 fw-semibold">{{ $summary['scanned_total'] }}</div></div>
+                        <div class="col-6"><div class="text-muted small">Inspected</div><div class="fs-5 fw-semibold">{{ $summary['scanned_total'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Verified</div><div class="fs-5 fw-semibold">{{ $summary['verified'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Missing (set)</div><div class="fs-5 fw-semibold">{{ $summary['missing'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Damaged</div><div class="fs-5 fw-semibold">{{ $summary['damaged'] }}</div></div>
-                        <div class="col-6"><div class="text-muted small">Misplaced</div><div class="fs-5 fw-semibold">{{ $summary['misplaced'] }}</div></div>
+                        {{-- <div class="col-6"><div class="text-muted small">Misplaced</div><div class="fs-5 fw-semibold">{{ $summary['misplaced'] }}</div></div> --}}
+                        <div class="col-6"><div class="text-muted small">Borrowed</div><div class="fs-5 fw-semibold">{{ $summary['borrowed'] ?? 0 }}</div></div>
                         {{-- <div class="col-6"><div class="text-muted small">Unknown scans</div><div class="fs-5 fw-semibold">{{ $summary['unknown_total'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Overdue borrows</div><div class="fs-5 fw-semibold">{{ $summary['overdue_total'] }}</div></div> --}}
                     </div>
@@ -175,6 +187,8 @@
                                                 'DAMAGED' => 'danger',
                                                 'MISPLACED' => 'warning',
                                                 'MISSING' => 'dark',
+                                                'BORROWED' => 'info',
+                                                'REPLACED' => 'secondary',
                                                 'UNKNOWN' => 'warning',
                                                 default => 'secondary',
                                             };

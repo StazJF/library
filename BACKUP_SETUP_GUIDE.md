@@ -3,7 +3,7 @@
 ## Overview
 Your database backup system now uses a **single backup file** that automatically overwrites with new data. This file is located at:
 ```
-C:\Users\jimmu\Herd\library\storage\app\backups\database_backup.zip
+C:\Users\<you>\Herd\library\storage\app\backups\database_backup.zip
 ```
 
 **Backup files are password-protected** using AES-256 encryption for security.
@@ -31,7 +31,7 @@ All backups are automatically encrypted with AES-256 encryption. The backup pass
 
 1. Open `.env` file:
    ```
-   C:\Users\jimmu\Herd\library\.env
+   C:\Users\<you>\Herd\library\.env
    ```
 
 2. Find or add the line:
@@ -44,6 +44,21 @@ All backups are automatically encrypted with AES-256 encryption. The backup pass
 4. Save the file
 
 5. New backups will use the new password
+
+Optional (recommended):
+```
+BACKUP_REQUIRE_PASSWORD=true
+```
+If enabled, backups will fail instead of producing an unencrypted ZIP when your PHP `ext-zip` build can't apply encryption.
+
+### Windows Extraction Note (Important)
+Windows File Explorer often cannot extract **password-protected** ZIP files (especially AES-encrypted ZIPs). If your extraction fails, use **7-Zip** or **WinRAR**.
+
+Optional compatibility setting:
+```
+BACKUP_ZIP_ENCRYPTION=zipcrypto
+```
+This requests legacy ZipCrypto encryption (when supported by your PHP/libzip). If your extractor still fails, use 7-Zip or remove `BACKUP_PASSWORD`.
 
 **Password Requirements:**
 - Minimum 8 characters
@@ -59,8 +74,10 @@ To restore a password-protected backup:
    - Select **7-Zip → Extract Here**
    - Enter the password when prompted
    - Extract the `.sql` file
+   - If the extracted `.sql` is 0 KB, open the ZIP and check `backup_info.txt` (it shows the expected SQL size), then re-extract and re-enter the password
 
 2. **Using Windows Explorer:**
+   - Not recommended: Explorer often cannot extract encrypted ZIPs correctly
    - Double-click the `.zip` file
    - Enter password when prompted
    - Copy the `.sql` file out
@@ -81,7 +98,7 @@ To restore a password-protected backup:
 2. Run this command:
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-   C:\Users\jimmu\Herd\library\setup-backup-scheduler.ps1
+   C:\Users\<you>\Herd\library\setup-backup-scheduler.ps1
    ```
 3. Follow the prompts
 4. Choose backup frequency (Daily or Hourly)
@@ -93,14 +110,29 @@ This script will:
 - Configure it to run automatically
 - Create a log file to track executions
 
+### Secure Backup Folder (Overwrites Each Run)
+
+Scheduled backups always write to:
+`storage/app/backups/database_backup.zip` (inside the project).
+
+To keep an additional copy in a **secured folder** that gets **overwritten each schedule run**, set this Windows environment variable for the task user (or system-wide):
+
+```
+BACKUP_SECURE_EXPORT_DIR=C:\ProgramData\LibraryBackups
+```
+
+If not set, the scripts default to `%ProgramData%\LibraryBackups`.
+
+Note: your web browser cannot be forced to download to a protected folder or overwrite an existing file. `BACKUP_SECURE_EXPORT_DIR` creates/updates a **server-side copy** on the same machine where Laravel runs (useful for scheduled backups and for keeping a single overwritten ZIP in a locked-down folder).
+
 ### Step 2 (ALTERNATIVE): Manual Setup
 
 If you prefer to set it up manually:
 
-1. **Create batch file** `C:\Users\jimmu\Herd\library\backup-task.bat`:
+1. **Create batch file** `C:\Users\<you>\Herd\library\backup-task.bat`:
    ```batch
    @echo off
-   cd /d "C:\Users\jimmu\Herd\library"
+   cd /d "C:\Users\<you>\Herd\library"
    C:\xampp\php\php.exe -d display_errors=0 artisan backup:database >> storage\logs\backup-task.log 2>&1
    echo Backup task completed at %date% %time% >> storage\logs\backup-task.log
    ```
@@ -124,7 +156,7 @@ If you prefer to set it up manually:
 5. **Set Action**:
    - Select **Start a program**
    - Program: `batch-task.bat`
-   - Start in: `C:\Users\jimmu\Herd\library`
+   - Start in: `C:\Users\<you>\Herd\library`
    - Click **Next**
 
 6. **Finish**:
@@ -137,13 +169,13 @@ If you prefer to set it up manually:
 
 1. **Check the backup file**:
    ```powershell
-   Get-ChildItem "C:\Users\jimmu\Herd\library\storage\app\backups\database_backup.zip" | Select-Object LastWriteTime
+   Get-ChildItem "C:\Users\<you>\Herd\library\storage\app\backups\database_backup.zip" | Select-Object LastWriteTime
    ```
    The "LastWriteTime" should update after each backup run.
 
 2. **Check the log file**:
    ```powershell
-   Get-Content "C:\Users\jimmu\Herd\library\storage\logs\backup-task.log" -Tail 20
+   Get-Content "C:\Users\<you>\Herd\library\storage\logs\backup-task.log" -Tail 20
    ```
    Look for success messages like "✓ Backup completed successfully!"
 
@@ -158,7 +190,7 @@ If you prefer to set it up manually:
 
 Run this to test a backup right now:
 ```powershell
-cd C:\Users\jimmu\Herd\library
+cd C:\Users\<you>\Herd\library
 php artisan backup:database
 ```
 
@@ -205,7 +237,7 @@ Get-ScheduledTask -TaskName "LibraryDatabaseBackup" | Select-Object State
 
 Check the log for errors:
 ```powershell
-Get-Content "C:\Users\jimmu\Herd\library\storage\logs\backup-task.log"
+Get-Content "C:\Users\<you>\Herd\library\storage\logs\backup-task.log"
 ```
 
 Common issues:
@@ -303,7 +335,7 @@ Ensure you have:
 
 Your Laravel project is located at:
 ```
-C:\Users\jimmu\Herd\library
+C:\Users\<you>\Herd\library
 ```
 
 ### Step 2: Test the Artisan Command Manually
@@ -311,7 +343,7 @@ C:\Users\jimmu\Herd\library
 Open Command Prompt (or PowerShell as Administrator) and run:
 
 ```bash
-cd C:\Users\jimmu\Herd\library
+cd C:\Users\<you>\Herd\library
 php artisan backup:database
 ```
 
@@ -352,7 +384,7 @@ If you get errors:
    - Choose **Action** → **Start a program**
    - Program/script: `php.exe`
    - Add arguments: `artisan backup:database --retention=30`
-   - Start in: `C:\Users\jimmu\Herd\library`
+   - Start in: `C:\Users\<you>\Herd\library`
    - Click **Next**
 
 5. **Finish**
@@ -376,7 +408,7 @@ If you get errors:
 ```powershell
 # Define the task
 $trigger = New-ScheduledTaskTrigger -Daily -At 02:00AM
-$action = New-ScheduledTaskAction -Execute "php.exe" -Argument "artisan backup:database --retention=30" -WorkingDirectory "C:\Users\jimmu\Herd\library"
+$action = New-ScheduledTaskAction -Execute "php.exe" -Argument "artisan backup:database --retention=30" -WorkingDirectory "C:\Users\<you>\Herd\library"
 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -RunOnlyIfNetworkAvailable
 
 # Register the task
@@ -391,7 +423,7 @@ Register-ScheduledTask -TaskName "Database Backup - Daily" -Trigger $trigger -Ac
    - Look for "Task completed with an exit code of (0)" for success
 
 2. **Verify Backup Files Created**
-   - Navigate to: `C:\Users\jimmu\Herd\library\storage\app\backups`
+   - Navigate to: `C:\Users\<you>\Herd\library\storage\app\backups`
    - Check that files are being created daily
 
 3. **Check Activity Log**
@@ -445,7 +477,7 @@ The microsecond precision ensures that even if backups run simultaneously, they 
 
 **Test manually:**
 ```bash
-cd C:\Users\jimmu\Herd\library
+cd C:\Users\<you>\Herd\library
 php artisan backup:database
 ```
 

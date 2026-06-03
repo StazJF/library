@@ -7,46 +7,72 @@
             <h3 class="mb-0">Audit Summary</h3>
             <div class="text-muted small">
                 SY {{ $session->school_year }}
-                • Started {{ $session->started_at?->format('M d, Y h:i A') }}
+                • Started {{ $session->started_at?->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}
                 @if($session->ended_at)
-                    • Ended {{ $session->ended_at?->format('M d, Y h:i A') }}
+                    • Ended {{ $session->ended_at?->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}
                 @endif
                 • Status: <span class="badge bg-{{ $session->status === 'OPEN' ? 'warning' : 'success' }}">{{ $session->status }}</span>
             </div>
         </div>
         <div class="d-flex gap-2">
-            <a href="{{ route('audit.show', $session) }}" class="btn btn-outline-dark">Scanning</a>
+            <a href="{{ route('audit.show', $session) }}" class="btn btn-outline-dark">Inspecting</a>
             <a href="{{ route('audit.report', $session) }}" class="btn btn-dark">Print Report</a>
         </div>
     </div>
 
+    @php $isAdmin = (auth()->user()->role ?? null) === 'admin'; @endphp
+
     @if (session('status'))
         <div class="alert alert-success">{{ session('status') }}</div>
+    @endif
+    @if (session('error'))
+        <div class="alert alert-danger">{{ session('error') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert alert-danger">{{ $errors->first() }}</div>
     @endif
 
     <div class="row g-3">
         <div class="col-lg-4">
             <div class="card shadow-sm mb-3">
-                <div class="card-header bg-white fw-semibold">Manual Status Update</div>
+                <div class="card-header bg-white fw-semibold">Admin Audit Actions</div>
                 <div class="card-body">
                     @if($session->status !== 'OPEN')
                         <div class="alert alert-info mb-0">Session is finalized. Re-open (admin) to edit statuses.</div>
+                    @elseif(!$isAdmin)
+                        <div class="alert alert-info mb-0">Final audit actions are restricted to Admin accounts.</div>
                     @else
                         <form method="POST" action="{{ route('audit.status', $session) }}">
                             @csrf
                             <input type="hidden" name="redirect_to" value="{{ url()->full() }}">
                             <div class="mb-2">
                                 <label class="form-label small text-muted mb-1">Control Number</label>
-                                <input type="text" name="control_number" class="form-control" placeholder="e.g. CN000123" required>
+                                <input type="text" name="control_number" class="form-control" placeholder="e.g. 001-001" required>
                             </div>
                             <div class="mb-2">
-                                <label class="form-label small text-muted mb-1">Status</label>
+                                <label class="form-label small text-muted mb-1">Action Remark</label>
                                 <select name="result_status" class="form-select" required>
                                     <option value="VERIFIED">Verified</option>
                                     <option value="DAMAGED">Damaged</option>
-                                    <option value="MISPLACED">Misplaced</option>
+                                    {{-- <option value="MISPLACED">Misplaced</option> --}}
                                     <option value="MISSING">Missing</option>
+                                    <option value="BORROWED">Borrowed</option>
+                                    {{-- <option value="REPLACED">Replaced</option> --}}
                                 </select>
+                            </div>
+                            {{-- <div class="row g-2 mb-2">
+                                <div class="col-md-6">
+                                    <label class="form-label small text-muted mb-1">Replacement Control # (for Replaced)</label>
+                                    <input type="text" name="replacement_control_number" class="form-control" placeholder="e.g. 001-999">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted mb-1">Acq. Year</label>
+                                    <input type="number" name="replacement_acquisition_year" class="form-control" placeholder="2026">
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small text-muted mb-1">Condition</label>
+                                    <input type="text" name="replacement_condition" class="form-control" placeholder="Good">
+                                </div>
                             </div>
                             <div class="mb-2">
                                 <label class="form-label small text-muted mb-1">Found Location (optional)</label>
@@ -55,9 +81,9 @@
                             <div class="mb-3">
                                 <label class="form-label small text-muted mb-1">Remarks (optional)</label>
                                 <input type="text" name="remarks" class="form-control" placeholder="e.g. torn cover, missing pages">
-                            </div>
+                            </div> --}}
                             <button class="btn btn-outline-dark w-100" type="submit">
-                                <i class="fas fa-save me-2"></i>Save Status
+                                <i class="fas fa-save me-2"></i>Apply Action
                             </button>
                         </form>
                     @endif
@@ -69,11 +95,13 @@
                 <div class="card-body">
                     <div class="row g-2">
                         <div class="col-6"><div class="text-muted small">Total in scope</div><div class="fs-5 fw-semibold">{{ $summary['total_in_scope'] }}</div></div>
-                        <div class="col-6"><div class="text-muted small">Scanned</div><div class="fs-5 fw-semibold">{{ $summary['scanned_total'] }}</div></div>
+                        <div class="col-6"><div class="text-muted small">Inspected</div><div class="fs-5 fw-semibold">{{ $summary['scanned_total'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Verified</div><div class="fs-5 fw-semibold">{{ $summary['verified'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Missing</div><div class="fs-5 fw-semibold">{{ $summary['missing'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Damaged</div><div class="fs-5 fw-semibold">{{ $summary['damaged'] }}</div></div>
-                        <div class="col-6"><div class="text-muted small">Misplaced</div><div class="fs-5 fw-semibold">{{ $summary['misplaced'] }}</div></div>
+                        {{-- <div class="col-6"><div class="text-muted small">Misplaced</div><div class="fs-5 fw-semibold">{{ $summary['misplaced'] }}</div></div> --}}
+                        <div class="col-6"><div class="text-muted small">Borrowed</div><div class="fs-5 fw-semibold">{{ $summary['borrowed'] ?? 0 }}</div></div>
+                        <div class="col-6"><div class="text-muted small">Replaced</div><div class="fs-5 fw-semibold">{{ $summary['replaced'] ?? 0 }}</div></div>
                         {{-- <div class="col-6"><div class="text-muted small">Unknown scans</div><div class="fs-5 fw-semibold">{{ $summary['unknown_total'] }}</div></div>
                         <div class="col-6"><div class="text-muted small">Overdue</div><div class="fs-5 fw-semibold">{{ $summary['overdue_total'] }}</div></div> --}}
                     </div>
@@ -81,15 +109,32 @@
                     <hr>
 
                     @if($session->status === 'OPEN')
-                        <form method="POST" action="{{ route('audit.finalize', $session) }}" onsubmit="return confirm('Finalize this audit session? This will compute missing items based on books not scanned.');">
+                        <form method="POST" action="{{ route('audit.finalize', $session) }}" onsubmit="return confirm('Finalize this audit session? This will compute missing items based on books not inspected.');">
                             @csrf
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="fas fa-lock me-2"></i>Finalize Audit
                             </button>
                         </form>
                     @else
+                        @php
+                            $autoMissingToUndo = ($latestStatuses ?? collect())
+                                ->where('result_status', 'MISSING')
+                                ->where('remarks', 'Auto-marked missing on finalize')
+                                ->count();
+                        @endphp
+
+                        @if($autoMissingToUndo > 0)
+                            <form method="POST" action="{{ route('audit.undo-auto-missing', $session) }}" class="mb-2" onsubmit="return confirm('Undo auto-marked missing copies from finalize?');">
+                                @csrf
+                                <input type="hidden" name="redirect_to" value="{{ url()->full() }}">
+                                <button type="submit" class="btn btn-outline-warning w-100">
+                                    <i class="fas fa-undo me-2"></i>Undo Auto-Missing ({{ $autoMissingToUndo }})
+                                </button>
+                            </form>
+                        @endif
+
                         @if((auth()->user()->role ?? null) === 'admin')
-                            <form method="POST" action="{{ route('audit.reopen', $session) }}" onsubmit="return confirm('Re-open this audit session for additional scanning?');">
+                            <form method="POST" action="{{ route('audit.reopen', $session) }}" onsubmit="return confirm('Re-open this audit session for additional inspecting?');">
                                 @csrf
                                 <button type="submit" class="btn btn-outline-dark w-100">
                                     <i class="fas fa-unlock me-2"></i>Re-open (Admin)
@@ -107,7 +152,7 @@
                 <div class="card-body small">
                     <ul class="mb-0">
                         <li>Review missing candidates and confirm if any are currently borrowed or transferred.</li>
-                        <li>Encode or correct any “unknown” control numbers (barcode/label issues).</li>
+                        <li>Encode or correct any “unknown” control numbers (label issues).</li>
                         <li>Repair/replace damaged copies and update condition tracking.</li>
                         <li>Follow up overdue borrowers based on school policy.</li>
                     </ul>
@@ -116,6 +161,67 @@
         </div>
 
         <div class="col-lg-8">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header bg-white fw-semibold">Marked Missing (Lost Confirmation)</div>
+                <div class="card-body p-0">
+                    @if(($markedMissing ?? collect())->count() === 0)
+                        <div class="p-3 text-muted">No copies are currently marked as Missing.</div>
+                    @else
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Control #</th>
+                                        <th>Title</th>
+                                        <th>Status</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($markedMissing as $log)
+                                        @php
+                                            $copy = $log->bookCopy;
+                                            $isLostConfirmed = $copy && ($copy->status ?? null) === 'lost';
+                                        @endphp
+                                        <tr>
+                                            <td class="fw-semibold">{{ $log->control_number }}</td>
+                                            <td>{{ $copy?->book?->title ?? 'Unknown' }}</td>
+                                            <td>
+                                                @if($isLostConfirmed)
+                                                    <span class="badge bg-danger">LOST (confirmed)</span>
+                                                @else
+                                                    <span class="badge bg-dark">MISSING</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-end">
+                                                @if($isAdmin && !$isLostConfirmed && $copy)
+                                                    <form method="POST" action="{{ route('audit.confirmLost', $session) }}" class="d-inline" onsubmit="return confirm('Confirm this copy as LOST? This will send it to Lost & Damaged Books.');">
+                                                        @csrf
+                                                        <input type="hidden" name="redirect_to" value="{{ url()->full() }}">
+                                                        <input type="hidden" name="control_number" value="{{ $log->control_number }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">Confirm Lost</button>
+                                                    </form>
+                                                    <form method="POST" action="{{ route('audit.returnMissing', $session) }}" class="d-inline" onsubmit="return confirm('Mark this copy as RETURNED / FOUND and restore it to available inventory?');">
+                                                        @csrf
+                                                        <input type="hidden" name="redirect_to" value="{{ url()->full() }}">
+                                                        <input type="hidden" name="control_number" value="{{ $log->control_number }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-success ms-1">Returned</button>
+                                                    </form>
+                                                @elseif(!$isAdmin && !$isLostConfirmed)
+                                                    <span class="text-muted small">Admin only</span>
+                                                @else
+                                                    <span class="text-muted small">—</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
             <div class="card shadow-sm mb-3">
                 <div class="card-header bg-white fw-semibold">Missing Candidates </div>
                 <div class="table-responsive">
@@ -136,6 +242,8 @@
                                         'DAMAGED' => 'danger',
                                         'MISPLACED' => 'warning',
                                         'MISSING' => 'dark',
+                                        'BORROWED' => 'info',
+                                        'REPLACED' => 'secondary',
                                         default => 'secondary',
                                     };
                                 @endphp
@@ -143,7 +251,7 @@
                                     <td class="fw-semibold">{{ $copy->control_number }}</td>
                                     <td>{{ $copy->book?->title ?? 'Unknown' }}</td>
                                     <td class="text-end">
-                                        @if($session->status === 'OPEN')
+                                        @if($session->status === 'OPEN' && $isAdmin)
                                             <form method="POST" action="{{ route('audit.status', $session) }}" class="d-inline audit-status-form">
                                                 @csrf
                                                 <input type="hidden" name="control_number" value="{{ $copy->control_number }}">
@@ -152,19 +260,37 @@
                                                 <input type="hidden" name="redirect_to" value="{{ url()->full() }}">
 
                                                 <div class="dropdown">
-                                                    <button class="btn btn-sm btn-{{ $current === 'VERIFIED' ? 'success' : ($current === 'DAMAGED' ? 'danger' : ($current === 'MISPLACED' ? 'warning' : ($current === 'MISSING' ? 'dark' : 'secondary'))) }} dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                                    <button class="btn btn-sm btn-{{ $current === 'VERIFIED' ? 'success' : ($current === 'DAMAGED' ? 'danger' : ($current === 'MISPLACED' ? 'warning' : ($current === 'MISSING' ? 'dark' : ($current === 'BORROWED' ? 'info' : 'secondary')))) }} dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                                                         {{ $current ?? 'UNMARKED' }}
                                                     </button>
                                                     <ul class="dropdown-menu dropdown-menu-end">
                                                         <li><button class="dropdown-item {{ $current === 'VERIFIED' ? 'active' : '' }}" type="button" data-set-audit-status="VERIFIED">Verified</button></li>
                                                         <li><button class="dropdown-item {{ $current === 'MISSING' ? 'active' : '' }}" type="button" data-set-audit-status="MISSING">Missing</button></li>
                                                         <li><button class="dropdown-item {{ $current === 'DAMAGED' ? 'active' : '' }}" type="button" data-set-audit-status="DAMAGED">Damaged</button></li>
-                                                        <li><button class="dropdown-item {{ $current === 'MISPLACED' ? 'active' : '' }}" type="button" data-set-audit-status="MISPLACED">Misplaced</button></li>
+                                                        {{-- <li><button class="dropdown-item {{ $current === 'MISPLACED' ? 'active' : '' }}" type="button" data-set-audit-status="MISPLACED">Misplaced</button></li> --}}
+                                                        <li><button class="dropdown-item {{ $current === 'BORROWED' ? 'active' : '' }}" type="button" data-set-audit-status="BORROWED">Borrowed</button></li>
                                                     </ul>
                                                 </div>
                                             </form>
                                         @else
-                                            <span class="text-muted small">Finalized</span>
+                                            @php
+                                                $label = $current ?? 'UNMARKED';
+                                                $badge = match($label) {
+                                                    'VERIFIED' => 'success',
+                                                    'DAMAGED' => 'danger',
+                                                    // 'MISPLACED' => 'warning',
+                                                    'MISSING' => 'dark',
+                                                    'BORROWED' => 'info',
+                                                    'REPLACED' => 'secondary',
+                                                    default => 'secondary',
+                                                };
+                                            @endphp
+                                            <span class="badge bg-{{ $badge }}">{{ $label }}</span>
+                                            @if($session->status === 'OPEN' && !$isAdmin)
+                                                <div class="text-muted small">Admin only</div>
+                                            @elseif($session->status !== 'OPEN')
+                                                <div class="text-muted small">Finalized</div>
+                                            @endif
                                         @endif
                                     </td>
                                 </tr>
@@ -195,13 +321,13 @@
             </div>
 
             {{-- <div class="card shadow-sm mb-3">
-                <div class="card-header bg-white fw-semibold">Unknown Control Numbers (Scanned but Not in DB)</div>
+                <div class="card-header bg-white fw-semibold">Unknown Control Numbers (Inspected but Not in DB)</div>
                 <div class="table-responsive">
                     <table class="table table-sm table-striped align-middle mb-0">
                         <thead>
                             <tr>
                                 <th>Control #</th>
-                                <th>Scans</th>
+                                <th>Inspections</th>
                                 <th>Last Seen</th>
                             </tr>
                         </thead>
@@ -213,7 +339,7 @@
                                     <td class="text-muted small">{{ \Carbon\Carbon::parse($u->last_seen)->format('M d, Y h:i A') }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="3" class="text-center text-muted py-4">No unknown control numbers scanned.</td></tr>
+                                <tr><td colspan="3" class="text-center text-muted py-4">No unknown control numbers inspected.</td></tr>
                             @endforelse
                         </tbody>
                     </table>

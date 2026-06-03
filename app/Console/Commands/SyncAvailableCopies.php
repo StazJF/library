@@ -45,7 +45,7 @@ class SyncAvailableCopies extends Command
                 $book->update(['available_copies' => $calculatedAvailable]);
                 $updated++;
                 
-                $this->line("✓ Updated '{$book->title}': {$book->available_copies} → {$calculatedAvailable}");
+                $this->line("OK: Updated '{$book->title}': {$book->available_copies} -> {$calculatedAvailable}");
             }
         }
 

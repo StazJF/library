@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\Models\DistributedBook;
 use App\Models\BookCopy;
+use Illuminate\Support\Facades\Schema;
 
 class BorrowController extends Controller
 {
@@ -173,6 +174,8 @@ class BorrowController extends Controller
     {
         $request->validate([
             'user_id'    => 'required',
+            'advisory_grade' => 'required|integer|between:7,12',
+            'advisory_section' => 'required|string|max:50',
             'borrowed_at' => 'required|date',
             'due_date'   => 'required|date|after_or_equal:borrowed_at',
             'book_ids'   => 'required|array|min:1',
@@ -182,8 +185,14 @@ class BorrowController extends Controller
         ]);
 
         $userId = $request->input('user_id');
+        $advisoryGrade = (int) $request->input('advisory_grade');
+        $advisorySection = trim((string) $request->input('advisory_section'));
         $bookIds = $request->input('book_ids');
         $copyNumbers = $request->input('copy_numbers') ?? [];
+
+        if (!Schema::hasColumn('borrows', 'advisory_grade') || !Schema::hasColumn('borrows', 'advisory_section')) {
+            return redirect()->back()->with('error', 'Database is missing advisory fields for distribution borrows. Please run: php artisan migrate');
+        }
 
         // Verify teacher exists
         $teacher = Teacher::find($userId);
@@ -216,6 +225,9 @@ class BorrowController extends Controller
 
         $success = 0; $errors = [];
 
+        $actorId = Auth::id();
+        $actorRole = Auth::user()?->role;
+
         foreach ($bookIds as $index => $bookId) {
             $book = Book::find($bookId);
             if (!$book) {
@@ -228,7 +240,7 @@ class BorrowController extends Controller
                 continue;
             }
             try {
-                $borrow = DB::transaction(function () use ($book, $bookId, $userId, $borrowDate, $returnDate, $copyNumbers, $index, &$errors) {
+                $borrow = DB::transaction(function () use ($book, $bookId, $userId, $borrowDate, $returnDate, $copyNumbers, $index, $advisoryGrade, $advisorySection, $actorId, $actorRole, &$errors) {
                     $controlNumber = $this->normalizeCopyNumber($copyNumbers[$index] ?? null);
 
                     $copyQuery = $book->copies()
@@ -256,6 +268,10 @@ class BorrowController extends Controller
                         'role'        => 'teacher',
                         'origin'      => 'distribution',
                         'copy_number' => $bookCopy->control_number,
+                        'advisory_grade' => $advisoryGrade,
+                        'advisory_section' => $advisorySection,
+                        'created_by' => $actorId,
+                        'created_by_role' => $actorRole,
                     ]);
 
                     $bookCopy->markAsBorrowed();
@@ -348,6 +364,9 @@ class BorrowController extends Controller
         $errorCount = 0;
         $errors = [];
 
+        $actorId = Auth::id();
+        $actorRole = Auth::user()?->role;
+
         foreach ($bookIds as $index => $bookId) {
             $book = Book::find($bookId);
 
@@ -365,7 +384,7 @@ class BorrowController extends Controller
 
             // Create borrow record
             try {
-                $borrow = DB::transaction(function () use ($book, $bookId, $userId, $borrowDate, $returnDate, $copyNumbers, $index, $borrowType, &$errorCount, &$errors) {
+                $borrow = DB::transaction(function () use ($book, $bookId, $userId, $borrowDate, $returnDate, $copyNumbers, $index, $borrowType, $actorId, $actorRole, &$errorCount, &$errors) {
                     $controlNumber = $this->normalizeCopyNumber($copyNumbers[$index] ?? null);
 
                     $copyQuery = $book->copies()
@@ -395,6 +414,8 @@ class BorrowController extends Controller
                         'role'        => $borrowType,
                         'origin'      => 'personal',
                         'copy_number' => $bookCopy->control_number,
+                        'created_by' => $actorId,
+                        'created_by_role' => $actorRole,
                     ]);
 
                     $bookCopy->markAsBorrowed();
@@ -438,7 +459,7 @@ class BorrowController extends Controller
     // Show borrowed books that are not yet returned
     public function returnIndex()
     {
-        $borrows = Borrow::with(['book', 'user'])->whereNull('returned_at')->orderBy('borrowed_at', 'desc')->get();
+        $borrows = Borrow::with(['book', 'user', 'creator'])->whereNull('returned_at')->orderBy('borrowed_at', 'desc')->get();
 
         $today = Carbon::now();
 
@@ -472,6 +493,9 @@ class BorrowController extends Controller
             'borrow_ids.*' => ['string'],
             'quantity_returned' => ['nullable', 'integer', 'min:1'],
         ]);
+
+        $actorId = Auth::id();
+        $actorRole = Auth::user()?->role;
 
         // Get all borrow IDs to process (from hidden inputs if multiple, or use the route parameter)
         $borrowIds = $request->input('borrow_ids', []);
@@ -580,6 +604,8 @@ class BorrowController extends Controller
                 }
 
                 $borrow->returned_at = now();
+                $borrow->returned_by = Auth::id();
+                $borrow->returned_by_role = Auth::user()?->role;
                 $borrow->save();
 
                 if ($borrow->book) {
@@ -647,7 +673,7 @@ class BorrowController extends Controller
     // Generate printable receipt
     public function receipt($borrowId)
     {
-        $borrow = Borrow::with(['user', 'book'])->findOrFail($borrowId);
+        $borrow = Borrow::with(['user', 'book', 'creator'])->findOrFail($borrowId);
 
         $borrowedAt = $borrow->borrowed_at ? Carbon::parse($borrow->borrowed_at) : null;
         $dueDate    = $borrow->due_date ? Carbon::parse($borrow->due_date) : null;
@@ -660,7 +686,11 @@ class BorrowController extends Controller
             $remark = "{$overdueDays} day(s) overdue";
         }
 
-        return view('borrow.receipt', compact('borrow', 'borrowedAt', 'dueDate', 'overdueDays', 'remark'));
+        $actorRole = $borrow->created_by_role ?: ($borrow->creator?->role ?: null);
+        $actorName = $borrow->creator?->name ?: ($borrow->creator?->email ?: null);
+        $processedBy = $actorName ? ($actorRole ? (ucfirst($actorRole) . ': ' . $actorName) : $actorName) : null;
+
+        return view('borrow.receipt', compact('borrow', 'borrowedAt', 'dueDate', 'overdueDays', 'remark', 'processedBy'));
     }
 
     // Generate printable receipts for all active borrows
@@ -721,3 +751,5 @@ class BorrowController extends Controller
         return Borrow::STATUS_RETURNED_ON_TIME;
     }
 }
+        $actorId = Auth::id();
+        $actorRole = Auth::user()?->role;

@@ -9,20 +9,43 @@ echo.
 
 REM Check if PHP is available
 echo [1] Checking if PHP is available...
-php -v
-if errorlevel 1 (
-    echo ERROR: PHP not found in PATH
-    echo.
-    echo SOLUTION: Add PHP to your system PATH or use full path in Task Scheduler
-    echo.
-) else (
-    echo SUCCESS: PHP found
-    echo.
+set "PHP_EXE="
+if not defined PHP_EXE if exist "%USERPROFILE%\.config\herd\bin\php85\php.exe" set "PHP_EXE=%USERPROFILE%\.config\herd\bin\php85\php.exe"
+if not defined PHP_EXE if exist "%USERPROFILE%\.config\herd\bin\php84\php.exe" set "PHP_EXE=%USERPROFILE%\.config\herd\bin\php84\php.exe"
+if not defined PHP_EXE if exist "%USERPROFILE%\.config\herd\bin\php83\php.exe" set "PHP_EXE=%USERPROFILE%\.config\herd\bin\php83\php.exe"
+if not defined PHP_EXE if exist "%USERPROFILE%\.config\herd\bin\php82\php.exe" set "PHP_EXE=%USERPROFILE%\.config\herd\bin\php82\php.exe"
+if not defined PHP_EXE if exist "%USERPROFILE%\.config\herd\bin\php81\php.exe" set "PHP_EXE=%USERPROFILE%\.config\herd\bin\php81\php.exe"
+if not defined PHP_EXE (
+    for /f "delims=" %%I in ('where.exe php 2^>nul') do (
+        set "PHP_EXE=%%I"
+        goto :php_found
+    )
 )
+:php_found
+if not defined PHP_EXE if exist "C:\xampp\php\php.exe" set "PHP_EXE=C:\xampp\php\php.exe"
+
+if not defined PHP_EXE (
+    echo ERROR: Could not find php.exe
+    echo.
+    echo SOLUTION: Install Herd recommended, or add PHP to your PATH, then rerun this diagnostic.
+    echo.
+    goto :after_php_check
+)
+
+"%PHP_EXE%" -v
+if errorlevel 1 (
+    echo ERROR: PHP found but failed to run: %PHP_EXE%
+    echo.
+    goto :after_php_check
+)
+
+echo SUCCESS: PHP found at %PHP_EXE%
+echo.
+:after_php_check
 
 REM Check Laravel project directory
 echo [2] Checking Laravel project...
-cd /d C:\Users\jimmu\Herd\library
+cd /d "%~dp0"
 if exist "artisan" (
     echo SUCCESS: artisan file found
 ) else (
@@ -47,15 +70,22 @@ echo.
 
 REM Test the backup command
 echo [4] Testing backup command...
-echo Running: php artisan backup:database
+if not defined PHP_EXE (
+    echo SKIP: PHP not available, cannot run artisan command.
+    echo.
+    goto :after_backup_test
+)
+
+echo Running: "%PHP_EXE%" artisan backup:database
 echo.
-php artisan backup:database
+"%PHP_EXE%" artisan backup:database
 if errorlevel 1 (
     echo ERROR: Backup command failed with error code %ERRORLEVEL%
 ) else (
     echo SUCCESS: Backup command completed
 )
 echo.
+:after_backup_test
 
 REM Show current backups
 echo [5] Current backup files:

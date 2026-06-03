@@ -120,6 +120,21 @@ text-align:right;
 color:#555;
 }
 
+.signature-block{
+margin-top:20px;
+display:flex;
+justify-content:flex-end;
+}
+
+.signature-line{
+width:260px;
+border-top:1px solid #333;
+padding-top:6px;
+text-align:center;
+font-size:11px;
+color:#333;
+}
+
 @page{
 size:A4;
 margin:15mm;
@@ -259,6 +274,11 @@ No teachers found in the system
 </tbody>
 
 </table>
+
+{{-- Signature --}}
+<div class="signature-block">
+<div class="signature-line">Admin/Staff Signature</div>
+</div>
 
 
 <div class="summary-footer">

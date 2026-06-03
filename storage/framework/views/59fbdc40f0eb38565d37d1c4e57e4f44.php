@@ -67,7 +67,7 @@
                     // Penalty removed — using remarks instead
                 ?>
                 <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
-                    <table class="table table-sm table-hover" style="text-align: center; vertical-align: middle;">
+                    <table class="table table-sm table-hover">
                         <thead style="position: sticky; top: 0; background-color: #f8f9fa; z-index: 10;">
                             <tr>
                                 <th style="width: 14%;">Book Title</th>

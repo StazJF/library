@@ -136,6 +136,19 @@
             text-align: right;
             color: #555;
         }
+        .signature-block {
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .signature-line {
+            width: 260px;
+            border-top: 1px solid #333;
+            padding-top: 6px;
+            text-align: center;
+            font-size: 11px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
@@ -205,6 +218,9 @@
         @if($borrowerType === 'Teacher')
             <p><strong>Name:</strong> {{ $borrower->name ?? (($borrower->first_name ?? '') . ' ' . ($borrower->last_name ?? '')) }}</p>
             {{-- <p><strong>Department:</strong> {{ $borrower->department ?? 'N/A' }}</p> --}}
+            @if(($borrow->origin ?? null) === 'distribution' && ($borrow->advisory_grade || $borrow->advisory_section))
+                <p><strong>Advisory Class:</strong> Grade {{ $borrow->advisory_grade ?? '-' }} {{ $borrow->advisory_section ?? '' }}</p>
+            @endif
             @if($borrower->phone)
                 <p><strong>Phone:</strong> {{ $borrower->phone }}</p>
             @endif
@@ -299,8 +315,19 @@
             <td><strong>Notes</strong></td>
             <td>{{ $borrow->notes ?? 'No additional notes' }}</td>
         </tr>
+        @if(!empty($processedBy))
+            <tr>
+                <td><strong>Processed By</strong></td>
+                <td>{{ $processedBy }}</td>
+            </tr>
+        @endif
     </tbody>
 </table>
+
+{{-- Signature --}}
+<div class="signature-block">
+    <div class="signature-line">Admin/Staff Signature</div>
+</div>
 
 {{-- Summary Footer --}}
 <div class="summary-footer no-print">

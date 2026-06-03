@@ -54,10 +54,33 @@
                         <input type="text" class="form-control" id="phone_number" name="phone_number" value="<?php echo e(old('phone_number')); ?>" required>
                     </div>
                 </div>
+
+                <div class="border rounded p-3 mb-3 bg-light">
+                    <div class="form-check">
+                        <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="data_privacy_agreement"
+                            name="data_privacy_agreement"
+                            value="1"
+                            <?php echo e(old('data_privacy_agreement') ? 'checked' : ''); ?>
+
+                            required
+                        >
+                        <label class="form-check-label" for="data_privacy_agreement">
+                            I confirm that the teacher has been informed and agrees to the collection and use of their personal data for library management purposes.
+                        </label>
+                    </div>
+                    <div class="small text-muted mt-2">
+                        Required before saving. This is used for creating and managing teacher records (e.g., borrowing history, contact details, and reporting).
+                    </div>
+                </div>
+
                 <button type="submit" class="btn btn-primary">Save Teacher</button>
             </form>
         </div>
     </div>
 </div>
 <?php $__env->stopSection(); ?>
+
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\user\Herd\library\resources\views/users/create_teacher.blade.php ENDPATH**/ ?>

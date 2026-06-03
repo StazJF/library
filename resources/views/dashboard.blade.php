@@ -1,8 +1,14 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container">
-    <div class="container">
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-5 gap-3">
+        <div>
+            <h3 class="mb-0" style="font-weight: bold;">Overview Dashboard</h3>
+            <p class="text-muted mb-0">Monitors library transactions and activities</p>
+        </div>
+    </div>
+    <div class="container-fluid">
         @php
             $nearDueStudentBorrows = $nearDueStudentBorrows ?? collect();
             $nearDueTeacherBorrows = $nearDueTeacherBorrows ?? collect();
@@ -56,7 +62,7 @@
 
                 <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
                     <small style="color:#92400e;">
-                        Showing {{ $nearDueBorrows->count() }} due borrow(s) • Students: {{ $nearDueStudentBorrows->count() }} • {{-- Teachers: {{ $nearDueTeacherBorrows->count() }} --}}
+                        Showing {{ $nearDueBorrows->count() }} due borrow(s) • Students: {{ $nearDueStudentBorrows->count() }}  {{--Teachers: {{ $nearDueTeacherBorrows->count() }} --}}
                     </small>
                     <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#nearDueModal">
                         View All
@@ -172,18 +178,21 @@
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
                 <div style="font-size:1.1rem;font-weight:600;color:#111;">Total Book/s</div>
                 <div style="font-size:2rem;font-weight:700;color:#00000;">{{ $totalBooks }}</div>
+                <div style="font-size:0.85rem;color:#6b7280;margin-top:0.5rem;">All books in the library collection</div>
             </div>
         </div>
         <div class="flex-fill min-w-0" style="min-width:200px;">
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
                 <div style="font-size:1.1rem;font-weight:600;color:#111;">Total User/s</div>
                 <div style="font-size:2rem;font-weight:700;color:#00000;">{{ $totalUsers }}</div>
+                <div style="font-size:0.85rem;color:#6b7280;margin-top:0.5rem;">Students and teachers registered</div>
             </div>
         </div>
         <div class="flex-fill min-w-0" style="min-width:200px;">
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
                 <div style="font-size:1.1rem;font-weight:600;color:#111;">Total Borrow/s</div>
                 <div style="font-size:2rem;font-weight:700;color:#00000;">{{ $totalBorrows }}</div>
+                <div style="font-size:0.85rem;color:#6b7280;margin-top:0.5rem;">Total transactions recorded</div>
             </div>
         </div>
     </div>

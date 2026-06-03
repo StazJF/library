@@ -3,7 +3,7 @@
 @section('content')
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0" style="color:#111;">Archive</h2>
+        <h1 class="fw-bold mb-0" style="color:#111;">Archive</h1>
     </div>
 
     @if(session('success'))

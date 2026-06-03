@@ -1,3 +1,23 @@
+<?php
+    $labels = [
+        'book' => ['singular' => 'Book', 'plural' => 'Books'],
+        'book_copy' => ['singular' => 'Book Copy', 'plural' => 'Book Copies'],
+        'student' => ['singular' => 'Student', 'plural' => 'Students'],
+        'teacher' => ['singular' => 'Teacher', 'plural' => 'Teachers'],
+        'staff' => ['singular' => 'Staff', 'plural' => 'Staff'],
+    ];
+    $labelSingular = $labels[$type]['singular'] ?? ucfirst(str_replace('_', ' ', (string) $type));
+    $labelPlural = $labels[$type]['plural'] ?? ($labelSingular . 's');
+    $colspan = match($type) {
+        'book' => 8,
+        'book_copy' => 9,
+        'student' => 7,
+        'teacher' => 6,
+        'staff' => 5,
+        default => 7
+    };
+?>
+
 <?php if($items->count() > 0): ?>
     <style>
         .archive-table table tr[data-href]:hover {
@@ -9,7 +29,7 @@
     
     <form class="row g-2 mb-3" method="GET" action="<?php echo e(url()->current()); ?>">
         <div class="col-auto" style="flex:1 1 320px;">
-            <input type="search" name="q" class="form-control form-control-sm" placeholder="Search <?php echo e($type); ?>s by keyword..." value="<?php echo e(request('q')); ?>">
+            <input type="search" name="q" class="form-control form-control-sm" placeholder="Search <?php echo e($labelPlural); ?> by keyword..." value="<?php echo e(request('q')); ?>">
         </div>
         <div class="col-auto">
             <button type="submit" class="btn btn-sm btn-primary">Search</button>
@@ -17,14 +37,14 @@
     </form>
 
     <div class="mb-3 d-flex flex-wrap gap-2">
-        <form action="<?php echo e(route('utilities.restoreAll', $type)); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore all <?php echo e($type); ?>s? This will restore all deleted records.');">
+        <form action="<?php echo e(route('utilities.restoreAll', $type)); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore all <?php echo e($labelPlural); ?>? This will restore all deleted records.');">
             <?php echo csrf_field(); ?>
             <?php echo method_field('PATCH'); ?>
             <button type="submit" class="btn btn-success btn-sm d-flex align-items-center gap-1" style="border-radius:0.375rem;">
                 <i class="bi bi-arrow-clockwise"></i> <span>Restore All</span>
             </button>
         </form>
-        <form action="<?php echo e(route('utilities.deleteAll', $type)); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete all <?php echo e($type); ?>s? This cannot be undone.');">
+        <form action="<?php echo e(route('utilities.deleteAll', $type)); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete all <?php echo e($labelPlural); ?>? This cannot be undone.');">
             <?php echo csrf_field(); ?>
             <?php echo method_field('DELETE'); ?>
             <button type="submit" class="btn btn-danger btn-sm d-flex align-items-center gap-1" style="border-radius:0.375rem;">
@@ -46,6 +66,14 @@
                     <th>ISBN</th>
                     <th>Ctrl #</th>
                     <th>Condition</th>
+                <?php elseif($type === 'book_copy'): ?>
+                    <th>Book</th>
+                    <th>Author</th>
+                    <th>ISBN</th>
+                    <th>Control #</th>
+                    <th>Year</th>
+                    <th>Condition</th>
+                    <th>Status</th>
                 <?php elseif($type === 'student'): ?>
                     <th>First Name</th>
                     <th>Last Name</th>
@@ -65,16 +93,32 @@
         </thead>
         <tbody>
             <?php $__currentLoopData = $items; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $item): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                <tr <?php if($type === 'book' && !empty($item->ctrl_number)): ?> data-href="#" <?php endif; ?>>
+                <tr <?php if($type === 'book' && !empty($item->call_number)): ?> data-href="#" <?php endif; ?>>
                     <td>
-                        <input type="checkbox" class="archive-checkbox" data-restore-url="<?php echo e(route('utilities.restore', [$type, $item->id ?? $item->id])); ?>" data-delete-url="<?php echo e(route('utilities.delete', [$type, $item->id ?? $item->id])); ?>" aria-label="Select <?php echo e($type); ?>">
+                        <input type="checkbox" class="archive-checkbox" data-restore-url="<?php echo e(route('utilities.restore', [$type, $item->id ?? $item->id])); ?>" data-delete-url="<?php echo e(route('utilities.delete', [$type, $item->id ?? $item->id])); ?>" aria-label="Select <?php echo e($labelSingular); ?>">
                     </td>
                     <?php if($type === 'book'): ?>
+                        <?php
+                            $deletedCopiesForCtrl = $item->deletedCopies ?? collect();
+                            $ctrlBase = $item->call_number;
+                            if ((!$ctrlBase || trim((string) $ctrlBase) === '') && $deletedCopiesForCtrl->count() > 0) {
+                                $firstCtrl = (string) ($deletedCopiesForCtrl->first()->control_number ?? '');
+                                $ctrlBase = trim(explode('-', $firstCtrl, 2)[0] ?? '');
+                            }
+                        ?>
                         <td><?php echo e($item->title ?? 'N/A'); ?></td>
                         <td><?php echo e($item->author ?? 'N/A'); ?></td>
                         <td><?php echo e($item->isbn ?? 'N/A'); ?></td>
-                        <td><?php echo e($item->ctrl_number && $item->ctrl_number !== '' ? $item->ctrl_number : 'N/A'); ?></td>
+                        <td><?php echo e($ctrlBase && $ctrlBase !== '' ? $ctrlBase : 'N/A'); ?></td>
                         <td><?php echo e($item->condition && $item->condition !== '' ? $item->condition : 'N/A'); ?></td>
+                    <?php elseif($type === 'book_copy'): ?>
+                        <td><?php echo e($item->book?->title ?? 'Unknown'); ?></td>
+                        <td><?php echo e($item->book?->author ?? 'Unknown'); ?></td>
+                        <td><?php echo e($item->book?->isbn ?? 'N/A'); ?></td>
+                        <td><?php echo e($item->control_number ?? 'N/A'); ?></td>
+                        <td><?php echo e($item->acquisition_year ?? 'N/A'); ?></td>
+                        <td><?php echo e($item->condition ?? 'N/A'); ?></td>
+                        <td><?php echo e($item->status ?? 'N/A'); ?></td>
                     <?php elseif($type === 'student'): ?>
                         <td><?php echo e($item->first_name ?? 'N/A'); ?></td>
                         <td><?php echo e($item->last_name ?? 'N/A'); ?></td>
@@ -96,17 +140,12 @@
                         <td><?php echo e(ucfirst($item->role ?? 'N/A')); ?></td>
                     <?php endif; ?>
                     <td>
-                        <?php if($type === 'book'): ?>
-                            <?php echo e($item->created_at ? $item->created_at->format('M d, Y H:i') : 'N/A'); ?>
+                        <?php echo e($item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A'); ?>
 
-                        <?php else: ?>
-                            <?php echo e($item->deleted_at ? $item->deleted_at->format('M d, Y H:i') : 'N/A'); ?>
-
-                        <?php endif; ?>
                     </td>
                     <td class="d-flex gap-1">
                         <!-- Restore Button -->
-                        <form action="<?php echo e(route('utilities.restore', [$type, $item->id ?? $item->id])); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this <?php echo e($type); ?>?');">
+                        <form action="<?php echo e(route('utilities.restore', [$type, $item->id ?? $item->id])); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to restore this <?php echo e($labelSingular); ?>?');">
                             <?php echo csrf_field(); ?>
                             <?php echo method_field('PATCH'); ?>
                             <button type="submit" class="btn btn-primary btn-sm" style="border-radius:0.375rem;" title="Restore">
@@ -115,7 +154,7 @@
                         </form>
 
                         <!-- Delete Permanently Button -->
-                        <form action="<?php echo e(route('utilities.delete', [$type, $item->id ?? $item->id])); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete this <?php echo e($type); ?>? This cannot be undone.');">
+                        <form action="<?php echo e(route('utilities.delete', [$type, $item->id ?? $item->id])); ?>" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to permanently delete this <?php echo e($labelSingular); ?>? This cannot be undone.');">
                             <?php echo csrf_field(); ?>
                             <?php echo method_field('DELETE'); ?>
                             <button type="submit" class="btn btn-danger btn-sm" style="border-radius:0.375rem;" title="Delete Permanently">
@@ -124,6 +163,54 @@
                         </form>
                     </td>
                 </tr>
+
+                <?php if($type === 'book'): ?>
+                    <?php
+                        $deletedCopies = $item->deletedCopies ?? collect();
+                        $copiesId = 'deleted-copies-' . $item->id;
+                    ?>
+                    <tr class="table-light">
+                        <td colspan="<?php echo e($colspan); ?>">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-secondary toggle-copies-btn" data-target="<?php echo e($copiesId); ?>" style="border-radius:0.375rem; padding: 0.25rem 0.5rem;">
+                                    <i class="bi bi-chevron-right"></i>
+                                    <span class="fw-semibold">Deleted Book Copies (<?php echo e($deletedCopies->count()); ?>)</span>
+                                </button>
+                            </div>
+
+                            <div id="<?php echo e($copiesId); ?>" class="deleted-copies-container" style="display: none; margin-top: 0.75rem;">
+                                <?php if($deletedCopies->count() > 0): ?>
+                                    <div class="table-responsive mt-2">
+                                        <table class="table table-sm mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width:140px;">Control #</th>
+                                                    <th style="width:110px;">Year</th>
+                                                    <th style="width:140px;">Condition</th>
+                                                    <th style="width:110px;">Status</th>
+                                                    <th style="width:170px;">Deleted At</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <?php $__currentLoopData = $deletedCopies; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $copy): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                    <tr>
+                                                        <td><?php echo e($copy->control_number ?? 'N/A'); ?></td>
+                                                        <td><?php echo e($copy->acquisition_year ?? 'N/A'); ?></td>
+                                                        <td><?php echo e($copy->condition ?? 'N/A'); ?></td>
+                                                        <td><?php echo e($copy->status ?? 'N/A'); ?></td>
+                                                        <td><?php echo e($copy->deleted_at ? $copy->deleted_at->format('M d, Y H:i') : 'N/A'); ?></td>
+                                                    </tr>
+                                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                <?php else: ?>
+                                    <div class="text-muted small mt-2">No deleted copies found for this book.</div>
+                                <?php endif; ?>
+                            </div>
+                        </td>
+                    </tr>
+                <?php endif; ?>
             <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </tbody>
     </table>
@@ -134,6 +221,7 @@
         <?php
             $pageName = match($type) {
                 'book' => 'book_page',
+                'book_copy' => 'book_copy_page',
                 'student' => 'student_page',
                 'teacher' => 'teacher_page',
                 'staff' => 'staff_page',
@@ -158,6 +246,24 @@
             const checkboxes = Array.from(container.querySelectorAll('input.archive-checkbox'));
             const restoreBtn = container.querySelector('#restoreSelectedBtn-<?php echo e($type); ?>');
             const deleteBtn = container.querySelector('#deleteSelectedBtn-<?php echo e($type); ?>');
+
+            // Toggle functionality for deleted book copies (scoped per table to avoid double-toggling)
+            container.addEventListener('click', function(e) {
+                const toggleBtn = e.target.closest('.toggle-copies-btn');
+                if (!toggleBtn) return;
+
+                e.preventDefault();
+                const targetId = toggleBtn.dataset.target;
+                const target = targetId ? document.getElementById(targetId) : null;
+                const icon = toggleBtn.querySelector('i');
+
+                if (!target || !icon) return;
+
+                const isHidden = target.style.display === 'none';
+                target.style.display = isHidden ? 'block' : 'none';
+                icon.classList.toggle('bi-chevron-right', !isHidden);
+                icon.classList.toggle('bi-chevron-down', isHidden);
+            });
 
             function updateBulkButtons(){
                 const checked = checkboxes.filter(cb => cb.checked);
@@ -231,7 +337,7 @@
     </div>
 <?php else: ?>
     <div class="alert alert-info rounded shadow-sm border">
-        No deleted <?php echo e($type); ?>s found.
+        No deleted <?php echo e($labelPlural); ?> found.
     </div>
 <?php endif; ?>
 <?php /**PATH C:\Users\user\Herd\library\resources\views/utilities/archive-table.blade.php ENDPATH**/ ?>

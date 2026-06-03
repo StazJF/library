@@ -19,7 +19,7 @@
             color: #000;
         }
         .sidebar {
-            min-height: 100vh;
+            height: 100vh;
             background: #fff;
             color: #111;
             width: 220px;
@@ -28,8 +28,11 @@
             left: 0;
             border-right: 1px solid #e5e7eb;
             padding-top: 1.5rem;
+            padding-left: 0;
+            padding-right: 0;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
         .sidebar .navbar-brand {
             color: #111 !important;
@@ -40,6 +43,30 @@
             font-weight: 700;
             letter-spacing: -0.5px;
             padding-left: 1.25rem;
+            padding-right: 1.25rem;
+            flex-shrink: 0;
+        }
+        .sidebar nav {
+            flex: 1 1 auto;
+            overflow-y: auto;
+            overflow-x: hidden;
+            min-height: 0;
+            padding-left: 0;
+            padding-right: 0;
+            padding-bottom: 1rem;
+        }
+        .sidebar nav::-webkit-scrollbar {
+            width: 8px;
+        }
+        .sidebar nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar nav::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        .sidebar nav::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
         }
         .sidebar .nav-link {
             color: #111 !important;
@@ -51,11 +78,12 @@
             font-weight: 500;
             transition: background 0.15s, color 0.15s;
             margin-bottom: 0.25rem;
+            margin-left: 0.75rem;
+            margin-right: 0.75rem;
             border: none !important;
             background: transparent !important;
             cursor: pointer;
             text-align: left;
-            width: 100%;
         }
         .sidebar .nav-link i {
             font-size: 1.1rem;
@@ -80,8 +108,24 @@
             background: #fee2e2 !important;
             color: #b91c1c !important;
         }
+        .sidebar .collapse {
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        .sidebar .collapse .nav-link {
+            padding-left: 1.5rem;
+        }
         .sidebar .mt-auto {
             margin-top: auto;
+            flex-shrink: 0;
+            border-top: 1px solid #e5e7eb;
+            padding-top: 1rem;
+            padding-left: 0.75rem;
+            padding-right: 0.75rem;
+        }
+        .sidebar .mt-auto .nav-link {
+            margin-left: 0;
+            margin-right: 0;
         }
         .main-content {
             margin-left: 220px;
@@ -189,12 +233,38 @@
     height: 30px;
     object-fit: contain;
 }
+
+/* Sidebar Toggle Styles */
+.sidebar {
+    transition: transform 0.3s ease;
+}
+
+.sidebar.hidden {
+    transform: translateX(-100%);
+}
+
+.main-content {
+    transition: margin-left 0.3s ease;
+}
+
+.main-content.expanded {
+    margin-left: 0;
+}
+
+#sidebarToggle {
+    color: #111 !important;
+    cursor: pointer;
+}
+
+#sidebarToggle:hover {
+    background-color: #e5e7eb !important;
+}
     </style>
 </head>
 <body>
 
 <!-- Sidebar -->
-<div class="sidebar d-flex flex-column p-3">
+<div class="sidebar d-flex flex-column">
     <a class="navbar-brand mb-4 fw-bold d-flex align-items-center gap-2" href="{{ route('dashboard') }}">
          <img src="{{ asset('images/snhs-logo.png') }}" alt="SNHS Logo" class="logo">
         <span> SNHS Library</span>
@@ -369,15 +439,15 @@
             }
         </script>
         <!-- End Utilities Dropdown -->
-
-        <div class="mt-auto">
-            <a href="{{ route('logout') }}"
-               class="nav-link text-danger"
-               onclick="return confirm('Are you sure you want to log out?');">
-                <i class="fas fa-sign-out-alt"></i> Logout
-            </a>
-        </div>
     </nav>
+
+    <div class="mt-auto">
+        <a href="{{ route('logout') }}"
+           class="nav-link text-danger"
+           onclick="return confirm('Are you sure you want to log out?');">
+            <i class="fas fa-sign-out-alt"></i> Logout
+        </a>
+    </div>
 </div>
 
     <!-- Main Content -->
@@ -395,6 +465,9 @@
             <nav class="navbar topbar navbar-expand sticky-top">
                 <div class="container-fluid ">
                     <div class="d-flex align-items-center gap-2">
+                        <button id="sidebarToggle" class="btn btn-sm btn-outline-secondary" style="border: none; padding: 0.5rem 0.75rem;">
+                            <i class="fas fa-bars"></i>
+                        </button>
                     </div>
 
                     <ul class="navbar-nav ms-auto align-items-center">
@@ -411,14 +484,14 @@
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                 <li><h6 class="dropdown-header">{{ $displayName }}</h6></li>
                                 <li><span class="dropdown-item-text text-muted small">Role: <span class="badge {{ $badgeClass }}">{{ $roleLabel }}</span></span></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
+                                {{-- <li><hr class="dropdown-divider"></li> --}}
+                                {{-- <li>
                                     <a class="dropdown-item text-danger"
                                        href="{{ route('logout') }}"
                                        onclick="return confirm('Are you sure you want to log out?');">
                                         <i class="fas fa-sign-out-alt me-2"></i>Logout
                                     </a>
-                                </li>
+                                </li> --}}
                             </ul>
                         </li>
                     </ul>
@@ -454,6 +527,30 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', () => {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            // Check if sidebar was previously hidden (persisted in localStorage)
+            const isSidebarHidden = localStorage.getItem('sidebarHidden') === 'true';
+            if (isSidebarHidden) {
+                sidebar.classList.add('hidden');
+                mainContent.classList.add('expanded');
+            }
+            
+            // Toggle sidebar on button click
+            sidebarToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('hidden');
+                mainContent.classList.toggle('expanded');
+                
+                // Persist the state
+                const isHidden = sidebar.classList.contains('hidden');
+                localStorage.setItem('sidebarHidden', isHidden);
+            });
+        });
+
         // Initialize Bootstrap toasts
         document.addEventListener('DOMContentLoaded', () => {
             const toastElList = [].slice.call(document.querySelectorAll('.toast'))

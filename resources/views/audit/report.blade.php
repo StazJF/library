@@ -26,6 +26,8 @@
         }
         .report-meta td { padding: .15rem .4rem; }
         .report-title { letter-spacing: -0.4px; }
+        .signature-block { margin-top: 30px; display: flex; justify-content: flex-end; break-inside: avoid; page-break-inside: avoid; }
+        .signature-line { width: 260px; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 11px; color: #333; }
     </style>
 
     <div class="card shadow-sm mb-3">
@@ -37,7 +39,7 @@
                 </div>
                 <div class="text-end">
                     <div class="text-muted small">Generated</div>
-                    <div class="fw-semibold">{{ now()->format('M d, Y h:i A') }}</div>
+                    <div class="fw-semibold">{{ now()->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}</div>
                 </div>
             </div>
 
@@ -46,7 +48,7 @@
             <table class="table table-borderless report-meta mb-0">
                 <tr>
                     <td class="text-muted" style="width: 160px;">Audit Start</td>
-                    <td class="fw-semibold">{{ $session->started_at?->format('M d, Y h:i A') }}</td>
+                    <td class="fw-semibold">{{ $session->started_at?->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}</td>
                 </tr>
                 <tr>
                     <td class="text-muted">Audit End</td>
@@ -78,11 +80,13 @@
         <div class="card-body">
             <div class="row g-2">
                 <div class="col-6 col-md-3"><div class="text-muted small">Total in scope</div><div class="fs-5 fw-semibold">{{ $summary['total_in_scope'] }}</div></div>
-                <div class="col-6 col-md-3"><div class="text-muted small">Scanned</div><div class="fs-5 fw-semibold">{{ $summary['scanned_total'] }}</div></div>
+                <div class="col-6 col-md-3"><div class="text-muted small">Inspected</div><div class="fs-5 fw-semibold">{{ $summary['scanned_total'] }}</div></div>
                 <div class="col-6 col-md-3"><div class="text-muted small">Verified</div><div class="fs-5 fw-semibold">{{ $summary['verified'] }}</div></div>
                 <div class="col-6 col-md-3"><div class="text-muted small">Missing</div><div class="fs-5 fw-semibold">{{ $summary['missing'] }}</div></div>
                 <div class="col-6 col-md-3"><div class="text-muted small">Damaged</div><div class="fs-5 fw-semibold">{{ $summary['damaged'] }}</div></div>
-                <div class="col-6 col-md-3"><div class="text-muted small">Misplaced</div><div class="fs-5 fw-semibold">{{ $summary['misplaced'] }}</div></div>
+                {{-- <div class="col-6 col-md-3"><div class="text-muted small">Misplaced</div><div class="fs-5 fw-semibold">{{ $summary['misplaced'] }}</div></div> --}}
+                <div class="col-6 col-md-3"><div class="text-muted small">Borrowed</div><div class="fs-5 fw-semibold">{{ $summary['borrowed'] ?? 0 }}</div></div>
+                <div class="col-6 col-md-3"><div class="text-muted small">Replaced</div><div class="fs-5 fw-semibold">{{ $summary['replaced'] ?? 0 }}</div></div>
                 {{-- <div class="col-6 col-md-3"><div class="text-muted small">Unknown scans</div><div class="fs-5 fw-semibold">{{ $summary['unknown_total'] }}</div></div>
                 <div class="col-6 col-md-3"><div class="text-muted small">Overdue</div><div class="fs-5 fw-semibold">{{ $summary['overdue_total'] }}</div></div> --}}
             </div>
@@ -148,6 +152,62 @@
     </div>
 
     <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">Replaced</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Control #</th>
+                        <th>Title</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($replaced as $i => $log)
+                        <tr>
+                            <td>{{ $i + 1 }}</td>
+                            <td class="fw-semibold">{{ $log->control_number }}</td>
+                            <td>{{ $log->bookCopy?->book?->title ?? 'Unknown' }}</td>
+                            <td class="text-muted small">{{ $log->remarks ?? '' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="text-center text-muted py-4">None</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+        <div class="card-header bg-white fw-semibold">Borrowed</div>
+        <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Control #</th>
+                        <th>Title</th>
+                        <th>Remarks</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($borrowed as $i => $log)
+                        <tr>
+                            <td>{{ $i + 1 }}</td>
+                            <td class="fw-semibold">{{ $log->control_number }}</td>
+                            <td>{{ $log->bookCopy?->book?->title ?? 'Unknown' }}</td>
+                            <td class="text-muted small">{{ $log->remarks ?? '' }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="4" class="text-center text-muted py-4">None</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-3">
         <div class="card-header bg-white fw-semibold">Damaged</div>
         <div class="table-responsive">
             <table class="table table-sm table-striped align-middle mb-0">
@@ -175,7 +235,7 @@
         </div>
     </div>
 
-    <div class="card shadow-sm mb-3">
+    {{-- <div class="card shadow-sm mb-3">
         <div class="card-header bg-white fw-semibold">Misplaced</div>
         <div class="table-responsive">
             <table class="table table-sm table-striped align-middle mb-0">
@@ -203,17 +263,17 @@
                 </tbody>
             </table>
         </div>
-    </div>
+    </div> --}}
 
     {{-- <div class="card shadow-sm mb-3">
-        <div class="card-header bg-white fw-semibold">Unknown Control Numbers (Scanned but Not in DB)</div>
+        <div class="card-header bg-white fw-semibold">Unknown Control Numbers (Inspected but Not in DB)</div>
         <div class="table-responsive">
             <table class="table table-sm table-striped align-middle mb-0">
                 <thead>
                     <tr>
                         <th>#</th>
                         <th>Control #</th>
-                        <th>Scans</th>
+                        <th>Inspections</th>
                         <th>Last Seen</th>
                     </tr>
                 </thead>
@@ -271,12 +331,17 @@
         </div>
     </div> --}}
 
+    {{-- Signature --}}
+    <div class="signature-block">
+        <div class="signature-line">Admin/Staff Signature</div>
+    </div>
+
     <div class="mt-4 small text-muted">
         <div class="fw-semibold">Recommendations</div>
         <ol class="mb-0">
             <li>Investigate missing copies; verify if checked-out, transferred, or mislabeled.</li>
             <li>Repair/replace damaged copies; document condition for compliance reporting.</li>
-            <li>Resolve unknown control numbers (encode missing copies or fix barcode labels).</li>
+            <li>Resolve unknown control numbers (encode missing copies or fix ctrl# labels).</li>
             <li>Follow up overdue borrowers and document actions taken.</li>
         </ol>
     </div>

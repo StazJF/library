@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use App\Models\ActivityLog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use ZipArchive;
 
@@ -102,9 +103,21 @@ class BackupDatabase extends Command
         }
 
         $sqlSize = filesize($sqlPath);
+        if (!is_int($sqlSize) || $sqlSize <= 0) {
+            $this->error("SQL dump is empty: {$sqlPath}");
+            Log::error('SQL dump empty', ['path' => $sqlPath]);
+            return 1;
+        }
         $this->info("SQL dump created: " . number_format($sqlSize / 1024 / 1024, 2) . " MB");
 
         // Create zip archive (overwrite if exists)
+        if (!class_exists(\ZipArchive::class)) {
+            $this->error("PHP Zip extension (ext-zip) is not enabled. Cannot create backup archive.");
+            Log::error('Backup failed: ext-zip not enabled');
+            @unlink($sqlPath);
+            return 1;
+        }
+
         $zip = new ZipArchive();
         if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== TRUE) {
             $this->error("Failed to create zip file: {$zipPath}");
@@ -128,15 +141,74 @@ class BackupDatabase extends Command
             return 1;
         }
 
+        $backupPassword = $this->option('password') ?? config('backup.password');
+        $requirePassword = (bool) config('backup.require_password', true);
+
+        // Include a small info file for verification/troubleshooting.
+        $zip->addFromString('backup_info.txt', implode("\r\n", [
+            'Library DB Backup',
+            'Generated: ' . date('c'),
+            'SQL filename: ' . basename($sqlPath),
+            'SQL size bytes: ' . (string) $sqlSize,
+            'Encrypted (requested): ' . ($backupPassword ? 'yes' : 'no'),
+            'Encryption mode: ' . (string) config('backup.zip_encryption', 'auto'),
+            '',
+            'Note: Windows File Explorer may not extract encrypted ZIPs; use 7-Zip.',
+        ]) . "\r\n");
+
         // Add password protection if configured
-        $backupPassword = $this->option('password') ?? config('app.backup_password', env('BACKUP_PASSWORD'));
         if ($backupPassword) {
-            if (defined('ZipArchive::EM_AES_256')) {
-                $zip->setEncryptionName(basename($sqlPath), ZipArchive::EM_AES_256, $backupPassword);
-                $this->info("✓ Password protection enabled (AES-256)");
-            } else {
-                $this->warn("Password protection requested but not available (requires PHP 7.2+ with libzip support)");
+            $encryptionMode = strtolower((string) config('backup.zip_encryption', 'auto'));
+
+            $requestedMethods = match ($encryptionMode) {
+                'zipcrypto' => ['zipcrypto'],
+                'aes256' => ['aes256'],
+                default => ['zipcrypto', 'aes256'], // auto
+            };
+
+            $encryptionApplied = false;
+            $encryptionLabel = null;
+
+            foreach ($requestedMethods as $method) {
+                if ($method === 'zipcrypto' && defined('ZipArchive::EM_TRAD_PKWARE') && method_exists($zip, 'setEncryptionName')) {
+                    $encryptionApplied = (bool) $zip->setEncryptionName(basename($sqlPath), ZipArchive::EM_TRAD_PKWARE, $backupPassword);
+                    $encryptionLabel = 'ZipCrypto';
+                }
+
+                if (!$encryptionApplied && $method === 'aes256' && defined('ZipArchive::EM_AES_256') && method_exists($zip, 'setEncryptionName')) {
+                    $encryptionApplied = (bool) $zip->setEncryptionName(basename($sqlPath), ZipArchive::EM_AES_256, $backupPassword);
+                    $encryptionLabel = 'AES-256';
+                }
+
+                if ($encryptionApplied) {
+                    break;
+                }
             }
+
+            if ($encryptionApplied && $encryptionLabel) {
+                $this->info("OK: Password protection enabled ({$encryptionLabel})");
+            } else {
+                $this->warn("Password protection requested but could not be applied by this PHP build (ext-zip/libzip)");
+                if ($requirePassword) {
+                    $this->error("Aborting: BACKUP_REQUIRE_PASSWORD=true and encryption failed/unavailable");
+                    $zip->close();
+                    @unlink($sqlPath);
+                    @unlink($zipPath);
+                    return 1;
+                }
+            }
+        }
+
+        // Verify SQL file is present in the zip and non-empty.
+        $stat = $zip->statName(basename($sqlPath));
+        $zippedSqlSize = is_array($stat) && isset($stat['size']) ? (int) $stat['size'] : null;
+        if (!is_int($zippedSqlSize) || $zippedSqlSize <= 0) {
+            $this->error("SQL entry in ZIP is missing/empty");
+            Log::error('SQL entry in ZIP missing/empty', ['zip' => $zipPath, 'entry' => basename($sqlPath)]);
+            $zip->close();
+            @unlink($sqlPath);
+            @unlink($zipPath);
+            return 1;
         }
 
         $zip->close();
@@ -144,6 +216,9 @@ class BackupDatabase extends Command
 
         // Delete temporary SQL file
         @unlink($sqlPath);
+
+        // Also keep/overwrite a secured copy on the server filesystem.
+        $this->writeSecureBackupCopy($zipPath);
 
         // Optional: cleanup older backup files created by previous versions/configs.
         $this->cleanupOldBackups($backupDir, $zipPath);
@@ -161,9 +236,34 @@ class BackupDatabase extends Command
             $this->warn("Could not log backup: " . $e->getMessage());
         }
 
-        $this->info("✓ Backup completed successfully!");
+        $this->info("OK: Backup completed successfully!");
         Log::info('Database backup completed successfully', ['backup_file' => $filename . '.zip', 'size' => filesize($zipPath)]);
         return 0;
+    }
+
+    private function writeSecureBackupCopy(string $sourceZipPath): void
+    {
+        try {
+            $secureDir = config('backup.secure_export_dir');
+            if (!$secureDir) {
+                return;
+            }
+
+            if (!File::exists($sourceZipPath)) {
+                return;
+            }
+
+            File::ensureDirectoryExists($secureDir);
+            File::copy($sourceZipPath, $secureDir . DIRECTORY_SEPARATOR . basename($sourceZipPath));
+            $this->info("Secure copy updated: " . $secureDir . DIRECTORY_SEPARATOR . basename($sourceZipPath));
+        } catch (\Throwable $e) {
+            $this->warn("Secure copy failed: " . $e->getMessage());
+            Log::warning('Secure backup copy failed', [
+                'source' => $sourceZipPath,
+                'dir' => config('backup.secure_export_dir'),
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     private function cleanupOldBackups(string $backupDir, string $currentZipPath): void

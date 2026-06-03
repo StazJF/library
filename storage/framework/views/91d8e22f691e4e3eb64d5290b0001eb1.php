@@ -6,7 +6,8 @@
     
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
-            <h4 class="mb-1">Book Inventory</h4>
+            <h3 class="fw-bold">Book Inventory</h3>
+            <p class="text-muted mb-0">Manage your library's book collection</p>
 
         </div>
         <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -14,9 +15,7 @@
                 <i class="bi bi-printer me-1"></i>Print All
             </a>
 
-            <button type="button" class="btn btn-outline-dark" data-bs-toggle="modal" data-bs-target="#importBooksModal">
-                <i class="bi bi-download me-1"></i>Import CSV
-            </button>
+            
         
             <a href="<?php echo e(route('books.create')); ?>" class="btn btn-success">
                 <i class="bi bi-plus-circle me-1"></i>Add Book
@@ -85,6 +84,15 @@
     
     <form id="searchForm" method="GET" action="<?php echo e(route('books.catalog')); ?>" class="mb-4">
         <div class="row g-2">
+            <div class="col-md-2">
+                <input
+                    type="search"
+                    name="control_number"
+                    class="form-control"
+                    placeholder="Control # (first 3 digits)"
+                    value="<?php echo e(request('control_number')); ?>"
+                >
+            </div>
             <div class="col-md-3">
                 <input
                     type="search"
@@ -94,7 +102,7 @@
                     value="<?php echo e(request('title')); ?>"
                 >
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input
                     type="search"
                     name="author"
@@ -103,7 +111,7 @@
                     value="<?php echo e(request('author')); ?>"
                 >
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input
                     type="search"
                     name="publisher"
@@ -124,7 +132,7 @@
                 </select>
             </div>
             <div class="col-md-1">
-                <button class="btn btn-primary w-100" type="submit">
+                <button class="btn btn-primary h-100 w-100" type="submit">
                     <i class="bi bi-search me-1"></i>
                 </button>
             </div>
@@ -178,9 +186,17 @@
                                 } elseif ($base !== '') {
                                     $ctrlBase = $base;
                                 }
+                                $hasActiveBorrows = ($book->active_borrows_count ?? 0) > 0;
                             ?>
                             <td>
-                                <input type="checkbox" class="form-check-input book-checkbox" data-book-id="<?php echo e($book->id); ?>">
+                                <input
+                                    type="checkbox"
+                                    class="form-check-input book-checkbox"
+                                    data-book-id="<?php echo e($book->id); ?>"
+                                    <?php echo e($hasActiveBorrows ? 'disabled' : ''); ?>
+
+                                    title="<?php echo e($hasActiveBorrows ? 'Cannot delete: at least one copy is currently borrowed.' : ''); ?>"
+                                >
                             </td>
                             <td class="fw-semibold"><?php echo e($ctrlBase); ?></td>
                             <td>
@@ -248,10 +264,10 @@
                                         <i class="bi bi-pencil"></i>
                                     </a>
                                     <?php if(Auth::user() && Auth::user()->role === 'admin'): ?>
-                                    <form action="<?php echo e(route('books.destroy', $book->id)); ?>" method="POST" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this book?');">
+                                    <form action="<?php echo e(route('books.destroy', $book->id)); ?>" method="POST" class="d-inline" onsubmit="<?php echo e($hasActiveBorrows ? 'return false;' : 'return confirm(\'Are you sure you want to delete this book?\');'); ?>">
                                         <?php echo csrf_field(); ?>
                                         <?php echo method_field('DELETE'); ?>
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="<?php echo e($hasActiveBorrows ? 'Cannot delete: at least one copy is currently borrowed.' : 'Delete'); ?>" <?php echo e($hasActiveBorrows ? 'disabled' : ''); ?>>
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     </form>
@@ -1958,6 +1974,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         </table>
                     `;
                 }
+
+                // Add signature
+                printContent += `
+                    <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+                        <div style="width: 260px; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 11px; color: #333;">
+                            Admin/Staff Signature
+                        </div>
+                    </div>
+                `;
 
                 // Add summary footer
                 printContent += `

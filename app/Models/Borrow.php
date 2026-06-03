@@ -66,7 +66,13 @@ class Borrow extends Model
         'role',
         'origin',
         'copy_number',
+        'advisory_grade',
+        'advisory_section',
         'status',
+        'created_by',
+        'created_by_role',
+        'returned_by',
+        'returned_by_role',
     ];
 
     protected $casts = [
@@ -102,6 +108,16 @@ class Borrow extends Model
     public function bookCopy()
     {
         return $this->belongsTo(BookCopy::class, 'book_copy_id');
+    }
+
+    public function creator()
+    {
+        return $this->belongsTo(SystemUser::class, 'created_by')->withTrashed();
+    }
+
+    public function returner()
+    {
+        return $this->belongsTo(SystemUser::class, 'returned_by')->withTrashed();
     }
 
     public function lostDamagedItem()

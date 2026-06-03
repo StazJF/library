@@ -29,14 +29,15 @@
 <?php $__env->startSection('content'); ?>
 <div class="container-fluid py-4">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-        <h1 class="h2 mb-0">Students List</h1>
+        <div>
+            <h2 class="mb-1">Students List</h2>
+            <p class="text-muted mb-0">Manage student records and their borrowing status.</p>
+        </div>
         <div class="d-flex gap-2">
             <a href="<?php echo e(route('users.print', request()->query())); ?>" target="_blank" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-2"></i>Print All
             </a>
-            <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
-                <i class="bi bi-download me-2"></i>Import CSV
-            </button>
+            
             <a href="<?php echo e(route('users.create')); ?>" class="btn btn-success">
                 <i class="bi bi-plus-circle me-2"></i>Add Student
             </a>
@@ -157,7 +158,7 @@
                         <th class="border-0 fw-semibold d-none d-lg-table-cell">Phone</th>
                         <th class="border-0 fw-semibold d-none d-xl-table-cell">Address</th>
                         <th class="border-0 fw-semibold">Current Borrowed Books</th>
-                        <th class="border-0 fw-semibold">Remarks</th>
+                        <th class="border-0 fw-semibold d-none">Remarks</th>
                         <!-- Notes column removed -->
                         <th class="border-0 fw-semibold text-center">Actions</th>
                     </tr>
@@ -364,7 +365,7 @@
                                 <?php endif; ?>
                             </td>
 
-                            <td>
+                            <td class="d-none">
                                 <?php
                                     $displayRemark = $user->remark;
                                     if (!$displayRemark) {
@@ -372,10 +373,13 @@
                                     }
                                 ?>
 
-                                <span class="badge <?php if($totalOverdue > 0 && !$user->remark): ?> bg-danger <?php elseif(in_array($user->remark, ['Cleared', 'Good Standing'])): ?> bg-success <?php elseif($user->remark == 'Not Cleared'): ?> bg-danger <?php else: ?> bg-success <?php endif; ?>">
-                                    <?php echo e($displayRemark); ?>
+                               <span class="badge 
+    <?php if(in_array($user->remark, ['Lost', 'Damage'])): ?> text-danger 
+    <?php else: ?> text-success 
+    <?php endif; ?>">
+    <?php echo e($displayRemark); ?>
 
-                                </span>
+</span>
                             </td>
 
                             <td class="text-center">

@@ -54,7 +54,7 @@ You'll get something like: `C:\xampp\php\php.exe`
 ### Run Diagnostic:
 
 ```powershell
-cd C:\Users\jimmu\Herd\library
+cd C:\Users\<you>\Herd\library
 C:\BACKUP_DIAGNOSTICS.bat  # Or use your PHP path
 ```
 
@@ -72,7 +72,7 @@ If the direct approach doesn't work, use the PowerShell script method:
 
 ### Step 1: Edit the Script
 
-1. Open: `C:\Users\jimmu\Herd\library\backup-script.ps1`
+1. Open: `C:\Users\<you>\Herd\library\backup-script.ps1`
 2. Find this line:
    ```powershell
    $PHPPath = "C:\xampp\php\php.exe"  # CHANGE THIS to match your PHP installation
@@ -88,8 +88,8 @@ If the direct approach doesn't work, use the PowerShell script method:
 4. Click **Edit...**
 5. Change all fields:
    - **Program/script:** `powershell.exe`
-   - **Add arguments:** `-ExecutionPolicy Bypass -File "C:\Users\jimmu\Herd\library\backup-script.ps1"`
-   - **Start in:** `C:\Users\jimmu\Herd\library`
+   - **Add arguments:** `-ExecutionPolicy Bypass -File "C:\Users\<you>\Herd\library\backup-script.ps1"`
+   - **Start in:** `C:\Users\<you>\Herd\library`
 6. Click **OK** → **OK**
 
 ### Step 3: Test

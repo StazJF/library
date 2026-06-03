@@ -15,12 +15,12 @@
     </div>
 
     <div class="row justify-content-center">
-        <div class="container py-5">
+        <div class="container py-2">
             <div class="card shadow-sm">
                 <div class="card-body p-4">
 
-                    <h4 class="mb-1">Borrow Distributed Books</h4>
-                    <p class="text-muted mb-4">Select teacher and distribution books with quantities to borrow.</p>
+                    {{-- <h4 class="mb-1">Borrow Distributed Books</h4>
+                    <p class="text-muted mb-4">Select teacher and distribution books with quantities to borrow.</p> --}}
 
                     <form id="borrowDistributeForm" action="{{ route('borrow.distribute.store') }}" method="POST">
                         @csrf
@@ -54,6 +54,20 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Grade (Advisory)</label>
+                                <input type="number" name="advisory_grade" class="form-control form-control-sm" min="7" max="12" value="{{ old('advisory_grade') }}" required>
+                                @error('advisory_grade')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Section (Advisory)</label>
+                                <input type="text" name="advisory_section" class="form-control form-control-sm" maxlength="50" value="{{ old('advisory_section') }}" required>
+                                @error('advisory_section')
+                                    <div class="text-danger small mt-1">{{ $message }}</div>
+                                @enderror
+                            </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Borrow Date</label>
                                 <input type="date" name="borrowed_at" class="form-control" value="{{ date('Y-m-d') }}" required>

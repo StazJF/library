@@ -21,11 +21,11 @@
             <div>
                 <div class="fw-semibold">Open audit session found</div>
                 <div class="small text-muted">
-                    SY {{ $openSession->school_year }} • Started {{ $openSession->started_at?->format('M d, Y h:i A') }}
+                    SY {{ $openSession->school_year }} • Started {{ $openSession->started_at?->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}
                 </div>
             </div>
             <div class="d-flex gap-2">
-                <a class="btn btn-outline-dark" href="{{ route('audit.show', $openSession) }}">Continue Scanning</a>
+                <a class="btn btn-outline-dark" href="{{ route('audit.show', $openSession) }}">Continue Inspecting</a>
                 <a class="btn btn-dark" href="{{ route('audit.summary', $openSession) }}">View Summary</a>
             </div>
         </div>
@@ -51,7 +51,7 @@
                     @forelse($sessions as $s)
                         <tr>
                             <td class="fw-semibold">{{ $s->school_year }}</td>
-                            <td>{{ $s->started_at?->format('M d, Y h:i A') }}</td>
+                            <td>{{ $s->started_at?->timezone(config('app.display_timezone'))->format('M d, Y h:i A') }}</td>
                             <td>
                                 @php
                                     $badge = $s->status === 'OPEN' ? 'warning' : 'success';
@@ -80,4 +80,3 @@
     </div>
 </div>
 @endsection
-

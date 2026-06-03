@@ -1,14 +1,15 @@
 <?php $__env->startSection('content'); ?>
 <div class="container-fluid py-4">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
-        <h1 class="h2 mb-0">Teachers List</h1>
+        <div>
+            <h2 class="mb-1">Teachers List</h2>
+            <p class="text-muted mb-0">Manage teacher records and their borrowing status.</p>
+        </div>
         <div class="d-flex gap-2">
             <a href="<?php echo e(route('users.print-teacher')); ?>" target="_blank" class="btn btn-outline-secondary">
                 <i class="bi bi-printer me-2"></i>Print All
             </a>
-            <a href="<?php echo e(route('teachers.import.form')); ?>" class="btn btn-outline-secondary">
-                <i class="bi bi-download me-2"></i>Import CSV
-            </a>
+            
             <a href="<?php echo e(route('teachers.create')); ?>" class="btn btn-success">
                 <i class="bi bi-plus-circle me-2"></i>Add Teacher
             </a>

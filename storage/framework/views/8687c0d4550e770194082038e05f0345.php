@@ -1,11 +1,10 @@
-
-
 <?php $__env->startSection('content'); ?>
 <div class="container-fluid">
     
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
             <h4 class="mb-0">Return Borrowed Books</h4>
+            <p class="text-muted mb-0">Issue books returning with remarks</p>
         </div>
     </div>
 
@@ -150,7 +149,19 @@
                 background: white;
             }
         }
+
+        /* Toggle Processed By column */
+        body:not(.show-processed-by) .processed-by-col {
+            display: none !important;
+        }
     </style>
+
+    <div class="d-flex justify-content-end mb-3">
+        <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" role="switch" id="toggleProcessedBy">
+            <label class="form-check-label text-muted small" for="toggleProcessedBy">Show admin/staff responsible</label>
+        </div>
+    </div>
 
     
     <ul class="nav nav-tabs mb-4" id="returnTabs" role="tablist">
@@ -175,11 +186,8 @@
                 </div>
                 
                 <div class="p-2 bg-light border-bottom d-flex justify-content-between align-items-center gap-2">
-                    <input type="search" class="form-control form-control-sm student-search" placeholder="Search borrower, book, or control #..." style="max-width: 300px;" aria-label="Search student returns">
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-sm btn-primary student-filter-btn" data-filter="all">All</button>
-                        <button class="btn btn-sm btn-outline-dark student-filter-btn" data-filter="personal">Personal</button>
-                    </div>
+                    <input type="search" class="form-control form-control-sm student-search" placeholder="Search borrower, book, or control #..." style="max-width: 700px;" aria-label="Search student returns">
+                    
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -194,6 +202,7 @@
                 <th class="border-0 fw-semibold d-none d-lg-table-cell">Book Source</th>
                 <th class="border-0 fw-semibold d-none d-md-table-cell">Borrow Date</th>
                 <th class="border-0 fw-semibold d-none d-lg-table-cell">Due Date</th>
+                <th class="border-0 fw-semibold d-none d-lg-table-cell processed-by-col">Processed By</th>
                 <th class="border-0 fw-semibold">Control #</th>
                 <th class="border-0 fw-semibold">Status</th>
                 <th class="border-0 fw-semibold">Remarks</th>
@@ -305,13 +314,21 @@
                                 $bookSource = 'Distribution';
                             }
                         }
-                    ?>
+                ?>
                     <?php echo e($bookTitle); ?>
 
                 </td>
                 <td class="d-none d-lg-table-cell"><small><?php echo e($bookSource); ?></small></td>
                 <td class="d-none d-md-table-cell"><small><?php echo e($borrowedAt ? $borrowedAt->format('Y-m-d') : 'N/A'); ?></small></td>
                 <td class="d-none d-lg-table-cell"><small><?php echo e($dueDate ? $dueDate->format('Y-m-d') : 'N/A'); ?></small></td>
+                <td class="d-none d-lg-table-cell processed-by-col">
+                    <?php
+                        $actorRole = $borrow->created_by_role ?: ($borrow->creator?->role ?? null);
+                        $actorName = $borrow->creator?->name ?: ($borrow->creator?->email ?? null);
+                        $processedBy = $actorName ? (($actorRole ? ucfirst($actorRole) . ': ' : '') . $actorName) : '—';
+                    ?>
+                    <small><?php echo e($processedBy); ?></small>
+                </td>
 
                 
                 <td>
@@ -369,11 +386,25 @@
 
                 
                 <td class="text-center">
-                    <form action="<?php echo e(route('borrow.return.process', $borrow->id)); ?>" method="POST" class="d-flex gap-1 justify-content-center flex-wrap return-form" data-quantity="<?php echo e($quantity); ?>" data-borrow-id="<?php echo e($borrow->id); ?>">
+                    <form action="<?php echo e(route('borrow.return.process', $borrow->id)); ?>" method="POST" class="d-flex gap-1 justify-content-center align-items-center flex-wrap return-form" data-quantity="<?php echo e($quantity); ?>" data-borrow-id="<?php echo e($borrow->id); ?>">
                         <?php echo csrf_field(); ?>
                         
                         
                         <input type="hidden" name="remark" class="student-remark-input-<?php echo e($borrow->id); ?>" value="">
+
+                        
+                        <div class="return-notes-wrapper" style="display: none; max-width: 240px;">
+                            <textarea
+                                name="notes"
+                                class="form-control form-control-sm return-notes-input"
+                                placeholder="Damage note (optional)"
+                                maxlength="500"
+                                aria-label="Damage return note"
+                                rows="1"
+                                style="resize: vertical; height: calc(1.5em + .5rem + 2px);"
+                                disabled
+                            ></textarea>
+                        </div>
                         
                         
                         <div style="display: none;" class="borrow-ids-container">
@@ -434,7 +465,7 @@
                 </div>
                 
                 <div class="p-2 bg-light border-bottom d-flex justify-content-between align-items-center gap-2">
-                    <input type="search" class="form-control form-control-sm teacher-search" placeholder="Search borrower, book, or control #..." style="max-width: 300px;" aria-label="Search teacher returns">
+                    <input type="search" class="form-control form-control-sm teacher-search" placeholder="Search borrower, book, or control #..." style="max-width: 700px;" aria-label="Search teacher returns">
                     <div class="d-flex gap-2">
                         <button class="btn btn-sm btn-primary teacher-filter-btn" data-filter="all">All</button>
                         <button class="btn btn-sm btn-outline-dark teacher-filter-btn" data-filter="personal">Personal</button>
@@ -452,8 +483,10 @@
                 <th class="border-0 fw-semibold">Borrower</th>
                 <th class="border-0 fw-semibold">Book</th>
                 <th class="border-0 fw-semibold d-none d-lg-table-cell">Book Source</th>
+                <th class="border-0 fw-semibold d-none d-lg-table-cell">Advisory Class</th>
                 <th class="border-0 fw-semibold d-none d-md-table-cell">Borrow Date</th>
                 <th class="border-0 fw-semibold d-none d-lg-table-cell">Due Date</th>
+                <th class="border-0 fw-semibold d-none d-lg-table-cell processed-by-col">Processed By</th>
                 <th class="border-0 fw-semibold">Control #</th>
                 <th class="border-0 fw-semibold">Status</th>
                 <th class="border-0 fw-semibold">Remarks</th>
@@ -559,8 +592,23 @@
 
                 </td>
                 <td class="d-none d-lg-table-cell"><small><?php echo e($bookSource); ?></small></td>
+                <td class="d-none d-lg-table-cell">
+                    <?php if(($borrow->origin ?? '') === 'distribution' && ($borrow->advisory_grade || $borrow->advisory_section)): ?>
+                        <small>Grade <?php echo e($borrow->advisory_grade ?? '-'); ?> <?php echo e($borrow->advisory_section ?? ''); ?></small>
+                    <?php else: ?>
+                        <small class="text-muted">-</small>
+                    <?php endif; ?>
+                </td>
                 <td class="d-none d-md-table-cell"><small><?php echo e($borrowedAt ? $borrowedAt->format('Y-m-d') : 'N/A'); ?></small></td>
                 <td class="d-none d-lg-table-cell"><small><?php echo e($dueDate ? $dueDate->format('Y-m-d') : 'N/A'); ?></small></td>
+                <td class="d-none d-lg-table-cell processed-by-col">
+                    <?php
+                        $actorRole = $borrow->created_by_role ?: ($borrow->creator?->role ?? null);
+                        $actorName = $borrow->creator?->name ?: ($borrow->creator?->email ?? null);
+                        $processedBy = $actorName ? (($actorRole ? ucfirst($actorRole) . ': ' : '') . $actorName) : '—';
+                    ?>
+                    <small><?php echo e($processedBy); ?></small>
+                </td>
 
                 
                 <td>
@@ -602,11 +650,25 @@
 
                 
                 <td class="text-center">
-                    <form action="<?php echo e(route('borrow.return.process', $borrow->id)); ?>" method="POST" class="d-flex gap-1 justify-content-center flex-wrap return-form" data-quantity="<?php echo e($quantity); ?>" data-borrow-id="<?php echo e($borrow->id); ?>">
+                    <form action="<?php echo e(route('borrow.return.process', $borrow->id)); ?>" method="POST" class="d-flex gap-1 justify-content-center align-items-center flex-wrap return-form" data-quantity="<?php echo e($quantity); ?>" data-borrow-id="<?php echo e($borrow->id); ?>">
                         <?php echo csrf_field(); ?>
                         
                         
                         <input type="hidden" name="remark" class="teacher-remark-input-<?php echo e($borrow->id); ?>" value="">
+
+                        
+                        <div class="return-notes-wrapper" style="display: none; max-width: 240px;">
+                            <textarea
+                                name="notes"
+                                class="form-control form-control-sm return-notes-input"
+                                placeholder="Damage note (optional)"
+                                maxlength="500"
+                                aria-label="Damage return note"
+                                rows="1"
+                                style="resize: vertical; height: calc(1.5em + .5rem + 2px);"
+                                disabled
+                            ></textarea>
+                        </div>
                         
                         
                         <div style="display: none;" class="borrow-ids-container">
@@ -738,6 +800,46 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            // Processed By column toggle (persisted)
+            const processedByToggle = document.getElementById('toggleProcessedBy');
+            const processedByKey = 'show_processed_by_column';
+            const processedByShow = window.localStorage?.getItem(processedByKey) === '1';
+            document.body.classList.toggle('show-processed-by', processedByShow);
+            if (processedByToggle) {
+                processedByToggle.checked = processedByShow;
+                processedByToggle.addEventListener('change', function () {
+                    const show = !!this.checked;
+                    document.body.classList.toggle('show-processed-by', show);
+                    try { window.localStorage?.setItem(processedByKey, show ? '1' : '0'); } catch (e) {}
+                });
+            }
+
+            function setNotesVisibility(form, shouldShow) {
+                if (!form) return;
+                const wrapper = form.querySelector('.return-notes-wrapper');
+                const textarea = form.querySelector('.return-notes-input');
+                if (!wrapper || !textarea) return;
+
+                wrapper.style.display = shouldShow ? 'flex' : 'none';
+                textarea.disabled = !shouldShow;
+                if (!shouldShow) {
+                    textarea.value = '';
+                }
+            }
+
+            // Toggle notes on row-level remark changes (student/teacher)
+            document.querySelectorAll('select.remark-select').forEach(select => {
+                const row = select.closest('tr');
+                const form = row?.querySelector('form.return-form');
+                if (form) setNotesVisibility(form, select.value === 'Damage');
+
+                select.addEventListener('change', function() {
+                    const r = this.closest('tr');
+                    const f = r?.querySelector('form.return-form');
+                    setNotesVisibility(f, this.value === 'Damage');
+                });
+            });
+
             // Initialize checkboxes and button handlers for both tabs
             const tabs = [
                 {
@@ -853,6 +955,9 @@
                                     checkbox.dataset.remark = remarkSelect.value;
                                 });
                             }
+                            // Show notes only for Damage before building FormData
+                            const damageSelected = remarkSelect && remarkSelect.value === 'Damage';
+                            setNotesVisibility(form, !!damageSelected);
                             
                             // Build FormData and add per-borrow remarks
                             const formData = new FormData(form);
@@ -1101,6 +1206,14 @@
                                 targetForm.appendChild(remarkInput);
                             }
                         });
+
+                        // Show notes only if any checked item is marked as Damage
+                        const anyDamage = checkedCheckboxes.some(checkbox => {
+                            const borrowId = checkbox.value;
+                            const remarkSelect = modal.querySelector(`.modal-remark-input[data-borrow-id="${borrowId}"]`);
+                            return remarkSelect && remarkSelect.value === 'Damage';
+                        });
+                        setNotesVisibility(targetForm, anyDamage);
                         
                         // Close the modal
                         const bsModal = bootstrap.Modal.getInstance(modal);
@@ -1113,6 +1226,33 @@
                             targetForm.submit();
                         }, 300);
                     }
+                });
+            });
+
+            // If modal remarks change, update notes visibility live for the owning row
+            document.querySelectorAll('select.modal-remark-input').forEach(select => {
+                select.addEventListener('change', function() {
+                    const modal = this.closest('.modal');
+                    if (!modal) return;
+                    const modalId = modal.getAttribute('id');
+                    if (!modalId) return;
+
+                    const rows = document.querySelectorAll('tr.borrow-row, tr.borrow-row-teacher');
+                    let targetForm = null;
+                    rows.forEach(row => {
+                        const button = row.querySelector('[data-bs-target="#' + modalId + '"]');
+                        if (button) {
+                            targetForm = row.querySelector('.return-form') || row.querySelector('form');
+                        }
+                    });
+                    if (!targetForm) return;
+
+                    const checkedCheckboxes = Array.from(modal.querySelectorAll('.modal-checkbox')).filter(cb => cb.checked);
+                    const anyDamage = checkedCheckboxes.some(cb => {
+                        const remarkSelect = modal.querySelector(`.modal-remark-input[data-borrow-id="${cb.value}"]`);
+                        return remarkSelect && remarkSelect.value === 'Damage';
+                    });
+                    setNotesVisibility(targetForm, anyDamage);
                 });
             });
         });

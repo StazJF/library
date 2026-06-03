@@ -101,6 +101,7 @@
                                     <th style="width: 18%;">Title</th>
                                     <th style="width: 12%;">Author</th>
                                     <th style="width: 10%;">ISBN</th>
+                                    <th style="width: 12%;">Advisory Class</th>
                                     <th style="width: 14%;">Control No.</th>
                                     <th style="width: 11%;">Borrowed At</th>
                                     <th style="width: 11%;">Due Date</th>
@@ -132,6 +133,13 @@
                                         <td>{{ $bookTitle }}</td>
                                         <td>{{ $bookAuthor }}</td>
                                         <td>{{ $bookIsbn }}</td>
+                                        <td>
+                                            @if(($borrow->origin ?? '') === 'distribution' && ($borrow->advisory_grade || $borrow->advisory_section))
+                                                <span>Grade {{ $borrow->advisory_grade ?? '-' }} {{ $borrow->advisory_section ?? '' }}</span>
+                                            @else
+                                                <span class="text-muted">-</span>
+                                            @endif
+                                        </td>
                                         <td>
                                             <div class="font-monospace">{{ $copyNumberDisplay }}</div>
                                             <div class="small text-muted">Ctrl#: <span class="font-monospace">{{ $controlNumberRaw }}</span></div>

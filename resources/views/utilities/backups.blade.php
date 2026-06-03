@@ -4,7 +4,7 @@
 <div class="container">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h1>Database Backups</h1>
+            <h1 class="fw-bold mb-0" style="color:#111;">Database Backups</h1>
             <p class="text-muted small">A single backup file is maintained and automatically overwritten each time you create a new backup. Automated backups run on schedule via Windows Task Scheduler.</p>
         </div>
         <form id="backupForm" action="{{ route('utilities.backup') }}" method="POST" style="margin-bottom:0;">
@@ -36,6 +36,21 @@
 
     <div class="card">
         <div class="card-body">
+            @if(config('backup.password'))
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-lock"></i>
+                    <strong>Password-protected ZIP:</strong> Windows File Explorer often cannot extract encrypted ZIP files.
+                    Use 7-Zip or WinRAR to extract (you will be prompted for the password).
+                </div>
+            @endif
+            @if(config('backup.secure_export_dir'))
+                <div class="alert alert-secondary mb-3">
+                    <i class="fas fa-shield-alt"></i>
+                    <strong>Secure copy:</strong> The server also overwrites a copy at
+                    <code>{{ config('backup.secure_export_dir') }}</code>.
+                    (Your browser download location is controlled by the browser.)
+                </div>
+            @endif
             @if(count($backups) > 0)
                 <div class="alert alert-info mb-3">
                     <i class="fas fa-info-circle"></i> <strong>Current Backup:</strong> This is your latest database backup. It is automatically overwritten each time you create a new backup.
@@ -52,7 +67,7 @@
                         </thead>
                         <tbody>
                             @foreach($backups as $backup)
-                                <tr data-backup-name="{{ $backup['name'] }}">
+                                <tr data-backup-name="{{ $backup['name'] }}" data-download-url="{{ route('utilities.downloadBackup', $backup['name']) }}">
                                     <td>
                                         <i class="fas fa-file-archive text-primary"></i> 
                                         {{ $backup['name'] }}
@@ -62,7 +77,7 @@
                                         <small class="text-muted backup-date">{{ $backup['date'] }}</small>
                                     </td>
                                     <td class="text-center">
-                                        <a href="{{ route('utilities.downloadBackup', $backup['name']) }}" class="btn btn-sm btn-primary" title="Download backup">
+                                        <a href="{{ route('utilities.downloadBackup', $backup['name']) }}" class="btn btn-sm btn-primary" title="Download backup" data-download-link>
                                             <i class="fas fa-download"></i> Download
                                         </a>
                                         <form action="{{ route('utilities.deleteBackup', $backup['name']) }}" method="POST" style="display:inline;" class="delete-backup-form">
@@ -132,11 +147,37 @@
 
     (function () {
         const statusUrl = "{{ route('utilities.backupStatus') }}";
+        const downloadBaseUrl = "{{ url('utilities/download-backup') }}/";
         const alertEl = document.getElementById('backupAutoAlert');
         const alertBody = alertEl ? alertEl.querySelector('[data-alert-body]') : null;
 
-        let lastMtime = null;
+        let lastMtime = (() => {
+            const raw = window.localStorage.getItem('backup_last_mtime');
+            const n = raw ? Number(raw) : NaN;
+            return Number.isFinite(n) ? n : null;
+        })();
         let hadBackup = {{ count($backups) > 0 ? 'true' : 'false' }};
+
+        function shouldAutoDownload() {
+            // Default: enabled (so scheduled backups get pulled down automatically)
+            return window.localStorage.getItem('backup_auto_download') !== '0';
+        }
+
+        function triggerDownload(status) {
+            if (!shouldAutoDownload()) return;
+            if (!status || !status.name) return;
+
+            const v = status.modified_at_unix ? String(status.modified_at_unix) : String(Date.now());
+            const url = downloadBaseUrl + encodeURIComponent(status.name) + '?v=' + encodeURIComponent(v);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.rel = 'noopener';
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
 
         function setAlert(message) {
             if (!alertEl || !alertBody) return;
@@ -166,6 +207,12 @@
                 sizeCell.textContent = (status.size / 1024).toFixed(2) + ' KB';
             }
 
+            const dl = row.querySelector('[data-download-link]');
+            if (dl && status.modified_at_unix) {
+                const base = row.getAttribute('data-download-url') || (downloadBaseUrl + encodeURIComponent(status.name));
+                dl.href = base + '?v=' + encodeURIComponent(String(status.modified_at_unix));
+            }
+
             return true;
         }
 
@@ -181,12 +228,16 @@
 
                 if (!status.exists) {
                     lastMtime = null;
+                    window.localStorage.removeItem('backup_last_mtime');
                     hadBackup = false;
                     return;
                 }
 
                 if (lastMtime === null) {
                     lastMtime = status.modified_at_unix ?? null;
+                    if (lastMtime !== null) {
+                        window.localStorage.setItem('backup_last_mtime', String(lastMtime));
+                    }
                     hadBackup = true;
                     updateRow(status);
                     return;
@@ -195,10 +246,15 @@
                 if ((status.modified_at_unix ?? null) !== lastMtime) {
                     const wasCreated = !hadBackup;
                     lastMtime = status.modified_at_unix ?? null;
+                    if (lastMtime !== null) {
+                        window.localStorage.setItem('backup_last_mtime', String(lastMtime));
+                    }
                     hadBackup = true;
 
                     const when = status.modified_at_iso ? new Date(status.modified_at_iso).toLocaleString() : 'just now';
-                    setAlert((wasCreated ? 'Backup created' : 'Backup updated') + ' (' + when + ').');
+                    setAlert((wasCreated ? 'Backup created' : 'Backup updated') + ' (' + when + ').' + (shouldAutoDownload() ? ' Downloading…' : ''));
+
+                    triggerDownload(status);
 
                     if (wasCreated) {
                         window.setTimeout(() => window.location.reload(), 1500);

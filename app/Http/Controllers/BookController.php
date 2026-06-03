@@ -7,6 +7,8 @@ use App\Models\BookCopy;
 use App\Models\Borrow;
 use App\Models\DistributedBook;
 use App\Models\ActivityLog;
+use App\Models\AuditLog;
+use App\Models\AuditSession;
 use App\Models\LostDamagedItem;
 use App\Models\LostDamagedItemHistory;
 use Illuminate\Http\Request;
@@ -20,6 +22,54 @@ use Maatwebsite\Excel\Facades\Excel;
 
 class BookController extends Controller
 {
+    private function normalizeControlNumber(string $value): string
+    {
+        $v = trim($value);
+        $v = preg_replace('/\s+/', '', $v) ?? $v;
+        return strtoupper($v);
+    }
+
+    private function autoVerifyIfMissingInOpenAuditSessions(?BookCopy $copy, ?string $controlNumber, string $reason): void
+    {
+        if (!$copy || !is_string($controlNumber) || trim($controlNumber) === '') {
+            return;
+        }
+
+        $cn = $this->normalizeControlNumber($controlNumber);
+        if ($cn === '') {
+            return;
+        }
+
+        $sessions = AuditSession::where('status', AuditSession::STATUS_OPEN)->get(['id']);
+        if ($sessions->isEmpty()) {
+            return;
+        }
+
+        $createdBy = Auth::id();
+
+        foreach ($sessions as $session) {
+            $latest = AuditLog::where('audit_session_id', $session->id)
+                ->where('event_type', AuditLog::EVENT_STATUS_SET)
+                ->where('control_number', $cn)
+                ->latest('id')
+                ->first(['id', 'result_status']);
+
+            if (!$latest || $latest->result_status !== AuditLog::RESULT_MISSING) {
+                continue;
+            }
+
+            AuditLog::create([
+                'audit_session_id' => $session->id,
+                'event_type' => AuditLog::EVENT_STATUS_SET,
+                'control_number' => $cn,
+                'book_copy_id' => $copy->id,
+                'result_status' => AuditLog::RESULT_VERIFIED,
+                'remarks' => $reason,
+                'created_by' => $createdBy,
+            ]);
+        }
+    }
+
     private function normalizeControlBase(?string $base): string
     {
         $base = trim((string) $base);
@@ -506,6 +556,7 @@ class BookController extends Controller
         ]);
 
         $errors = [];
+        $skipped = 0;
         $file = $request->file('file');
         $extension = $file->getClientOriginalExtension();
 
@@ -521,32 +572,87 @@ class BookController extends Controller
             fclose($handle);
         }
 
-        // Skip header row if present
-        if (isset($rows[0]) && is_array($rows[0]) && count($rows[0]) >= 2) {
-            array_shift($rows);
-        }
+        $isBlankRow = function ($row): bool {
+            if (!is_array($row) || count($row) === 0) {
+                return true;
+            }
+
+            foreach ($row as $cell) {
+                if (trim((string) $cell) !== '') {
+                    return false;
+                }
+            }
+
+            return true;
+        };
+
+        $isHeaderRow = function ($row): bool {
+            if (!is_array($row)) {
+                return false;
+            }
+
+            $title = strtolower(trim((string) ($row[0] ?? '')));
+            $author = strtolower(trim((string) ($row[1] ?? '')));
+            $isbn = strtolower(trim((string) ($row[3] ?? '')));
+            $category = strtolower(trim((string) ($row[4] ?? '')));
+            $copies = strtolower(trim((string) ($row[5] ?? '')));
+
+            return $title === 'title'
+                && $author === 'author'
+                && $isbn === 'isbn'
+                && $category === 'category'
+                && in_array($copies, ['copies', 'copy', 'no. of copies', 'no of copies'], true);
+        };
 
         foreach ($rows as $row) {
+            if ($isBlankRow($row)) {
+                $skipped++;
+                continue;
+            }
+
+            if ($isHeaderRow($row)) {
+                $skipped++;
+                continue;
+            }
+
+            $title = trim((string) ($row[0] ?? ''));
+            $author = trim((string) ($row[1] ?? ''));
+            $publisher = trim((string) ($row[2] ?? ''));
+            $isbn = trim((string) ($row[3] ?? ''));
+            $category = trim((string) ($row[4] ?? ''));
+            $copiesRaw = trim((string) ($row[5] ?? ''));
+
             // Basic validation: at least title, author, publisher, isbn, category, copies
-            if (empty($row[0]) || empty($row[1]) || empty($row[3]) || empty($row[4]) || empty($row[5])) {
-                $errors[] = "Missing required fields (title, author, isbn, category, copies) in row: " . json_encode($row);
+            if ($title === '' || $author === '' || $isbn === '' || $category === '' || $copiesRaw === '') {
+                $errors[] = 'Missing required fields (title, author, isbn, category, copies) in row: ' . json_encode($row);
+                $skipped++;
+                continue;
+            }
+
+            if (!is_numeric($copiesRaw) || (int) $copiesRaw < 1) {
+                $errors[] = "Invalid copies value '{$copiesRaw}' for ISBN {$isbn}. Row skipped.";
+                $skipped++;
                 continue;
             }
 
             // Check if ISBN already exists
-            if (!empty($row[3]) && Book::where('isbn', $row[3])->exists()) {
-                $errors[] = "ISBN {$row[3]} already exists.";
+            if (Book::where('isbn', $isbn)->exists()) {
+                $errors[] = "ISBN {$isbn} already exists.";
+                $skipped++;
                 continue;
             }
 
+            $copies = (int) $copiesRaw;
+
             Book::create([
-                'title'    => $row[0],
-                'author'   => $row[1],
-                'publisher' => $row[2] ?? null,
-                'isbn'     => $row[3],
-                'category' => $row[4],
-                'copies'   => $row[5] ?? 1,
-                'status'   => 'available',
+                'title' => $title,
+                'author' => $author,
+                'publisher' => $publisher !== '' ? $publisher : null,
+                'isbn' => $isbn,
+                'category' => $category,
+                'copies' => $copies,
+                'available_copies' => $copies,
+                'status' => 'available',
             ]);
         }
 
@@ -558,7 +664,7 @@ class BookController extends Controller
         ]);
 
         if (!empty($errors)) {
-            return redirect()->route('books.catalog')->with('warning', 'Books imported with some errors: ' . implode(', ', $errors));
+            return redirect()->route('books.catalog')->with('warning', 'Books imported with some issues: ' . implode(', ', $errors));
         }
 
         return redirect()->route('books.catalog')->with('success', 'Books imported successfully.');
@@ -604,6 +710,30 @@ class BookController extends Controller
         $query = Book::query();
 
         // Field-specific filters (used by Book Inventory search form)
+        if ($request->filled('control_number')) {
+            $raw = (string) $request->input('control_number');
+            $raw = trim($raw);
+            $raw = preg_replace('/\s+/', '', $raw) ?? $raw;
+
+            $base = explode('-', $raw, 2)[0] ?? '';
+            $base = $this->normalizeControlBase($base);
+
+            if ($base !== '') {
+                if (preg_match('/^\d+$/', $base)) {
+                    $base = substr($base, 0, 3);
+                    $base = str_pad($base, 3, '0', STR_PAD_LEFT);
+                } else {
+                    $base = strtoupper($base);
+                }
+
+                $query->where(function ($q) use ($base) {
+                    $q->where('call_number', 'like', $base . '%')
+                        ->orWhereHas('copies', function ($cq) use ($base) {
+                            $cq->where('control_number', 'like', $base . '%');
+                        });
+                });
+            }
+        }
         if ($request->filled('title')) {
             $query->where('title', 'like', '%' . $request->input('title') . '%');
         }
@@ -1596,9 +1726,8 @@ class BookController extends Controller
         $history = LostDamagedItem::where('status', '!=', 'active')
             ->with(['borrow', 'book', 'histories'])
             ->orderBy('created_at', 'desc')
-            ->limit(50)
-            ->get()
-            ->map(function($item) {
+            ->paginate(20, ['*'], 'history_page')
+            ->through(function ($item) {
                 // Determine borrower name - check all possible sources
                 $borrower_name = 'Unknown';
                 
@@ -1617,14 +1746,22 @@ class BookController extends Controller
                 
                 // Get the user who performed the action (repaired/returned)
                 $performed_by = 'Unknown';
-                $latestHistory = $item->histories()->latest()->first();
+                $latestHistory = $item->histories?->sortByDesc('id')->first();
                 if ($latestHistory && $latestHistory->created_by) {
                     $actionUser = \App\Models\SystemUser::find($latestHistory->created_by);
                     if (!$actionUser) {
                         $actionUser = \App\Models\User::find($latestHistory->created_by);
                     }
                     if ($actionUser) {
-                        $performed_by = $actionUser->name ?? trim(($actionUser->first_name ?? '') . ' ' . ($actionUser->last_name ?? ''));
+                        $name = $actionUser->name ?? trim(($actionUser->first_name ?? '') . ' ' . ($actionUser->last_name ?? ''));
+                        $name = trim((string) $name);
+
+                        if ($actionUser instanceof \App\Models\SystemUser) {
+                            $role = trim((string) ($actionUser->role ?? ''));
+                            $performed_by = ($role !== '' ? (ucfirst($role) . ': ') : '') . ($name !== '' ? $name : ($actionUser->email ?? 'Unknown'));
+                        } else {
+                            $performed_by = $name !== '' ? $name : 'Unknown';
+                        }
                     }
                 }
                 
@@ -1634,12 +1771,24 @@ class BookController extends Controller
                     'ctrl_number' => $item->borrow?->copy_number ?? $item->copy_number ?? 'N/A',
                     'book_title' => $item->book ? $item->book->title : 'Unknown',
                     'borrower' => $borrower_name,
+                    'advisory_class' => (($item->borrow?->role ?? '') === 'teacher'
+                            && ($item->borrow?->origin ?? '') === 'distribution'
+                            && (($item->borrow?->advisory_grade ?? null) || ($item->borrow?->advisory_section ?? null)))
+                        ? ('Grade ' . ($item->borrow->advisory_grade ?? '-') . ' ' . ($item->borrow->advisory_section ?? ''))
+                        : null,
                     'performed_by' => $performed_by,
                     'borrowed_date' => $item->borrow?->borrowed_at,
                     'remarks' => $item->remarks ?? '—',
                     'created_at' => $item->created_at,
                 ];
             });
+
+        if ($request->boolean('history_only')) {
+            return response()->view('books.partials.lost-damage-history', [
+                'history' => $history,
+                'displayTimezone' => config('app.display_timezone', 'Asia/Manila'),
+            ]);
+        }
 
         return view('books.lost-damage', compact('lostCount', 'damagedCount', 'totalCount', 'records', 'history', 'ctrlNumberSearch', 'bookSearch', 'borrowerSearch', 'borrowedDateSearch', 'filterType'));
     }
@@ -1649,45 +1798,58 @@ class BookController extends Controller
      */
     public function lostDamagedReturn(LostDamagedItem $lostDamagedItem)
     {
-        $lostDamagedItem->update(['status' => 'returned']);
+        DB::transaction(function () use ($lostDamagedItem) {
+            $lostDamagedItem->update(['status' => 'returned']);
 
-        // Determine action label based on item type
-        $isLost = $lostDamagedItem->type === 'lost';
-        $actionLabel = $isLost ? 'Found' : 'Returned';
-        $successMessage = $isLost ? 'Item marked as found.' : 'Item marked as returned.';
+            // Determine action label based on item type
+            $isLost = $lostDamagedItem->type === 'lost';
+            $actionLabel = $isLost ? 'Found' : 'Returned';
 
-        // Restore item to inventory (for both lost and damaged items)
-        $book = $lostDamagedItem->book;
-        if ($book) {
-            // Get control number
-            $controlNumber = $lostDamagedItem->borrow?->copy_number ?? $lostDamagedItem->copy_number;
+            // Restore item to inventory (for both lost and damaged items)
+            $book = $lostDamagedItem->book;
+            if ($book) {
+                // Get control number
+                $controlNumber = $lostDamagedItem->borrow?->copy_number ?? $lostDamagedItem->copy_number;
 
-            // Update BookCopy record - single source of truth
-            $bookCopy = $book->getCopyByControlNumber($controlNumber);
-            if ($bookCopy) {
-                $bookCopy->markAsAvailable();
+                // Update BookCopy record - single source of truth
+                $bookCopy = $book->getCopyByControlNumber($controlNumber);
+                if ($bookCopy) {
+                    $bookCopy->markAsAvailable();
+                }
+
+                if (($lostDamagedItem->origin ?? null) === 'inventory_audit') {
+                    $this->autoVerifyIfMissingInOpenAuditSessions(
+                        $bookCopy ?? null,
+                        $controlNumber,
+                        "Auto-verified ({$actionLabel} from Lost/Damaged)"
+                    );
+                }
+
+                $itemType = $isLost ? 'Lost' : 'Damaged';
+                ActivityLog::create([
+                    'user_id' => Auth::id(),
+                    'action'  => "Marked as {$actionLabel}",
+                    'details' => "{$itemType} book copy (Ctrl#: {$controlNumber}) for '{$book->title}' marked as {$actionLabel} and restored to inventory.",
+                ]);
+            } else {
+                ActivityLog::create([
+                    'user_id' => Auth::id(),
+                    'action'  => "Marked as {$actionLabel}",
+                    'details' => "Item for book marked as {$actionLabel}.",
+                ]);
             }
 
-            $itemType = $isLost ? 'Lost' : 'Damaged';
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action'  => "Marked as {$actionLabel}",
-                'details' => "{$itemType} book copy (Ctrl#: {$controlNumber}) for '{$book->title}' marked as {$actionLabel} and restored to inventory.",
+            LostDamagedItemHistory::create([
+                'lost_damaged_item_id' => $lostDamagedItem->id,
+                'action' => 'returned',
+                'remarks' => "Book '{$lostDamagedItem->book?->title}' marked as {$actionLabel}.",
+                'created_by' => Auth::id(),
             ]);
-        } else {
-            ActivityLog::create([
-                'user_id' => Auth::id(),
-                'action'  => "Marked as {$actionLabel}",
-                'details' => "Item for book marked as {$actionLabel}.",
-            ]);
-        }
+        });
 
-        LostDamagedItemHistory::create([
-            'lost_damaged_item_id' => $lostDamagedItem->id,
-            'action' => 'returned',
-            'remarks' => "Book '{$lostDamagedItem->book?->title}' marked as {$actionLabel}.",
-            'created_by' => Auth::id(),
-        ]);
+        $successMessage = $lostDamagedItem->type === 'lost'
+            ? 'Item marked as found.'
+            : 'Item marked as returned.';
 
         return redirect()->route('books.lost-damage')->with('success', $successMessage);
     }
@@ -1704,36 +1866,51 @@ class BookController extends Controller
             return redirect()->route('books.lost-damage')->with('error', 'Only damaged items can be repaired.');
         }
 
-        // Get the book associated with this item
         $book = $lostDamagedItem->book;
         if (!$book) {
             return redirect()->route('books.lost-damage')->with('error', 'Associated book not found.');
         }
 
-        // Get control number
         $controlNumber = $lostDamagedItem->borrow?->copy_number ?? $lostDamagedItem->copy_number;
 
-        // Update BookCopy record - single source of truth
-        $bookCopy = $book->getCopyByControlNumber($controlNumber);
-        if ($bookCopy) {
-            $bookCopy->markAsAvailable();
-        }
+        DB::transaction(function () use ($lostDamagedItem, $book, $controlNumber) {
+            $bookCopy = BookCopy::where('book_id', $book->id)
+                ->where('control_number', $controlNumber)
+                ->lockForUpdate()
+                ->first();
 
-        // Update the lost/damaged item status to 'repaired'
-        $lostDamagedItem->update(['status' => 'repaired']);
+            if ($bookCopy) {
+                $currentCondition = is_string($bookCopy->condition) ? trim($bookCopy->condition) : null;
+                $wasBrandNew = is_string($currentCondition) && strcasecmp($currentCondition, 'Brand New') === 0;
 
-        ActivityLog::create([
-            'user_id' => Auth::id(),
-            'action'  => 'Marked as Repaired',
-            'details' => "Damaged book copy (Ctrl#: {$controlNumber}) for '{$book->title}' marked as repaired and restored to inventory.",
-        ]);
+                $update = [
+                    'status' => 'available',
+                    'is_lost_damaged' => false,
+                ];
 
-        LostDamagedItemHistory::create([
-            'lost_damaged_item_id' => $lostDamagedItem->id,
-            'action' => 'repaired',
-            'remarks' => "Book copy (Ctrl#: {$controlNumber}) marked as repaired and restored to inventory.",
-            'created_by' => Auth::id(),
-        ]);
+                // If this copy was Brand New before being damaged, it becomes Old when repaired.
+                if ($wasBrandNew) {
+                    $update['condition'] = 'Old';
+                }
+
+                $bookCopy->update($update);
+            }
+
+            $lostDamagedItem->update(['status' => 'repaired']);
+
+            ActivityLog::create([
+                'user_id' => Auth::id(),
+                'action'  => 'Marked as Repaired',
+                'details' => "Damaged book copy (Ctrl#: {$controlNumber}) for '{$book->title}' marked as repaired and restored to inventory.",
+            ]);
+
+            LostDamagedItemHistory::create([
+                'lost_damaged_item_id' => $lostDamagedItem->id,
+                'action' => 'repaired',
+                'remarks' => "Book copy (Ctrl#: {$controlNumber}) marked as repaired and restored to inventory.",
+                'created_by' => Auth::id(),
+            ]);
+        });
 
         return redirect()->route('books.lost-damage')->with('success', 'Damaged item marked as repaired and restored to inventory.');
     }

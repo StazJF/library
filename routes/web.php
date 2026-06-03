@@ -112,9 +112,12 @@ Route::get('users/print', [UserController::class, 'printAll'])->name('users.prin
 
         Route::get('/{session}', [AuditController::class, 'show'])->name('audit.show');
         Route::post('/{session}/scan', [AuditController::class, 'scan'])->name('audit.scan');
-        Route::post('/{session}/status', [AuditController::class, 'setStatus'])->name('audit.status');
+        Route::post('/{session}/status', [AuditController::class, 'setStatus'])->middleware('role:admin')->name('audit.status');
+        Route::post('/{session}/confirm-lost', [AuditController::class, 'confirmLost'])->middleware('role:admin')->name('audit.confirmLost');
+        Route::post('/{session}/return-missing', [AuditController::class, 'returnMissing'])->middleware('role:admin')->name('audit.returnMissing');
         Route::get('/{session}/summary', [AuditController::class, 'summary'])->name('audit.summary');
         Route::post('/{session}/finalize', [AuditController::class, 'finalize'])->name('audit.finalize');
+        Route::post('/{session}/undo-auto-missing', [AuditController::class, 'undoAutoMissing'])->name('audit.undo-auto-missing');
         Route::post('/{session}/reopen', [AuditController::class, 'reopen'])->middleware('role:admin')->name('audit.reopen');
         Route::get('/{session}/report', [AuditController::class, 'report'])->name('audit.report');
     });

@@ -13,12 +13,11 @@
     </div>
 
     <div class="row justify-content-center">
-        <div class="container py-5">
+        <div class="container py-2">
             <div class="card shadow-sm">
                 <div class="card-body p-4">
 
-                    <h4 class="mb-1">Borrow Distributed Books</h4>
-                    <p class="text-muted mb-4">Select teacher and distribution books with quantities to borrow.</p>
+                    
 
                     <form id="borrowDistributeForm" action="<?php echo e(route('borrow.distribute.store')); ?>" method="POST">
                         <?php echo csrf_field(); ?>
@@ -53,6 +52,34 @@
                         </div>
 
                         <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Grade (Advisory)</label>
+                                <input type="number" name="advisory_grade" class="form-control form-control-sm" min="7" max="12" value="<?php echo e(old('advisory_grade')); ?>" required>
+                                <?php $__errorArgs = ['advisory_grade'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <div class="text-danger small mt-1"><?php echo e($message); ?></div>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label">Section (Advisory)</label>
+                                <input type="text" name="advisory_section" class="form-control form-control-sm" maxlength="50" value="<?php echo e(old('advisory_section')); ?>" required>
+                                <?php $__errorArgs = ['advisory_section'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                    <div class="text-danger small mt-1"><?php echo e($message); ?></div>
+                                <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
+                            </div>
                             <div class="col-md-6 mb-3">
                                 <label class="form-label">Borrow Date</label>
                                 <input type="date" name="borrowed_at" class="form-control" value="<?php echo e(date('Y-m-d')); ?>" required>

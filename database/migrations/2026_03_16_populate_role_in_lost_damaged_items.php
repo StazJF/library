@@ -14,26 +14,26 @@ return new class extends Migration
     {
         // Populate role field for existing lost_damaged_items by matching with borrow records
         DB::statement('
-            UPDATE lost_damaged_items ldi
-            SET ldi.role = (
-                SELECT b.role
-                FROM borrows b
-                WHERE b.id = ldi.borrow_id
+            UPDATE lost_damaged_items
+            SET role = (
+                SELECT role
+                FROM borrows
+                WHERE borrows.id = lost_damaged_items.borrow_id
                 LIMIT 1
             )
-            WHERE ldi.role IS NULL
+            WHERE role IS NULL
         ');
 
         // Populate origin field for existing lost_damaged_items by matching with borrow records
         DB::statement('
-            UPDATE lost_damaged_items ldi
-            SET ldi.origin = (
-                SELECT b.origin
-                FROM borrows b
-                WHERE b.id = ldi.borrow_id
+            UPDATE lost_damaged_items
+            SET origin = (
+                SELECT origin
+                FROM borrows
+                WHERE borrows.id = lost_damaged_items.borrow_id
                 LIMIT 1
             )
-            WHERE ldi.origin IS NULL
+            WHERE origin IS NULL
         ');
     }
 

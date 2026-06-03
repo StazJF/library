@@ -8,7 +8,8 @@
     {{-- Header Section --}}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
         <div>
-            <h4 class="mb-1">Book Inventory</h4>
+            <h3 class="fw-bold">Book Inventory</h3>
+            <p class="text-muted mb-0">Manage your library's book collection</p>
 
         </div>
         <div class="d-flex gap-2 flex-wrap align-items-center">
@@ -85,6 +86,15 @@
     {{-- Search Form --}}
     <form id="searchForm" method="GET" action="{{ route('books.catalog') }}" class="mb-4">
         <div class="row g-2">
+            <div class="col-md-2">
+                <input
+                    type="search"
+                    name="control_number"
+                    class="form-control"
+                    placeholder="Control # (first 3 digits)"
+                    value="{{ request('control_number') }}"
+                >
+            </div>
             <div class="col-md-3">
                 <input
                     type="search"
@@ -94,7 +104,7 @@
                     value="{{ request('title') }}"
                 >
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input
                     type="search"
                     name="author"
@@ -103,7 +113,7 @@
                     value="{{ request('author') }}"
                 >
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input
                     type="search"
                     name="publisher"
@@ -124,7 +134,7 @@
                 </select>
             </div>
             <div class="col-md-1">
-                <button class="btn btn-primary w-100" type="submit">
+                <button class="btn btn-primary h-100 w-100" type="submit">
                     <i class="bi bi-search me-1"></i>
                 </button>
             </div>
@@ -1963,6 +1973,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         </table>
                     `;
                 }
+
+                // Add signature
+                printContent += `
+                    <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+                        <div style="width: 260px; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 11px; color: #333;">
+                            Admin/Staff Signature
+                        </div>
+                    </div>
+                `;
 
                 // Add summary footer
                 printContent += `

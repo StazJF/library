@@ -244,6 +244,7 @@ class DashboardController extends Controller
         $sortBy = $request->get('sort', 'borrowed_at');
         $sortOrder = $request->get('order', 'desc');
         $statusFilter = $request->get('status', 'all');
+        $remarksSearch = trim((string) $request->get('remarks', ''));
 
         // Validate sort parameters for security
         $sortBy = in_array($sortBy, ['id', 'borrowed_at', 'due_date', 'returned_at']) ? $sortBy : 'borrowed_at';
@@ -252,11 +253,73 @@ class DashboardController extends Controller
         // Use eager loading to improve performance - include lost/damaged items and their histories
         $transactionsQuery = Borrow::with([
             'book',
+            'bookCopy',
+            'creator',
+            'returner',
             'lostDamagedItem' => function ($query) {
                 $query->with('histories')->latest('created_at');
             }
         ])
             ->select('borrows.*');
+
+        // Apply remarks/status search (matches return_status, remark, notes, and lost/damaged history fields)
+        if ($remarksSearch !== '') {
+            $normalizedRemarks = strtolower($remarksSearch);
+            $normalizedRemarks = preg_replace('/[^a-z0-9]+/', '_', $normalizedRemarks) ?? '';
+            $normalizedRemarks = trim($normalizedRemarks, '_');
+
+            $likeRaw = '%' . $remarksSearch . '%';
+            $likeNormalized = $normalizedRemarks !== '' ? ('%' . $normalizedRemarks . '%') : $likeRaw;
+
+            $historyActionCandidates = [];
+            if ($normalizedRemarks !== '') {
+                if (str_contains($normalizedRemarks, 'found')) {
+                    $historyActionCandidates[] = 'returned';
+                }
+                if (str_contains($normalizedRemarks, 'repair') || str_contains($normalizedRemarks, 'repaired')) {
+                    $historyActionCandidates[] = 'repaired';
+                    $historyActionCandidates[] = 'resolved';
+                    $historyActionCandidates[] = 'replaced';
+                }
+                if (str_contains($normalizedRemarks, 'lost') || str_contains($normalizedRemarks, 'damage') || str_contains($normalizedRemarks, 'damaged')) {
+                    $historyActionCandidates[] = 'created';
+                }
+                if (str_contains($normalizedRemarks, 'pending') || str_contains($normalizedRemarks, 'active')) {
+                    $historyActionCandidates[] = 'pending';
+                }
+            }
+            $historyActionCandidates = array_values(array_unique(array_filter($historyActionCandidates)));
+
+            $transactionsQuery->where(function ($query) use ($likeRaw, $likeNormalized, $historyActionCandidates) {
+                $query
+                    ->where('borrows.return_status', 'like', $likeNormalized)
+                    ->orWhere('borrows.return_status', 'like', $likeRaw)
+                    ->orWhere('borrows.remark', 'like', $likeRaw)
+                    ->orWhere('borrows.remark', 'like', $likeNormalized)
+                    ->orWhere('borrows.notes', 'like', $likeRaw)
+                    ->orWhere('borrows.notes', 'like', $likeNormalized)
+                    ->orWhereHas('lostDamagedItem', function ($lostQuery) use ($likeRaw, $likeNormalized, $historyActionCandidates) {
+                        $lostQuery
+                            ->where('type', 'like', $likeRaw)
+                            ->orWhere('type', 'like', $likeNormalized)
+                            ->orWhere('status', 'like', $likeRaw)
+                            ->orWhere('status', 'like', $likeNormalized)
+                            ->orWhere('remarks', 'like', $likeRaw)
+                            ->orWhere('remarks', 'like', $likeNormalized)
+                            ->orWhereHas('histories', function ($historyQuery) use ($likeRaw, $likeNormalized, $historyActionCandidates) {
+                                $historyQuery
+                                    ->where('action', 'like', $likeRaw)
+                                    ->orWhere('action', 'like', $likeNormalized)
+                                    ->orWhere('remarks', 'like', $likeRaw)
+                                    ->orWhere('remarks', 'like', $likeNormalized);
+
+                                if (!empty($historyActionCandidates)) {
+                                    $historyQuery->orWhereIn('action', $historyActionCandidates);
+                                }
+                            });
+                    });
+            });
+        }
 
         // Apply status filter
         if ($statusFilter === 'active') {
@@ -288,6 +351,18 @@ class DashboardController extends Controller
             
             // Add flag to indicate if this is a lost/damaged transaction
             $transaction->is_lost_or_damaged = $transaction->isLostOrDamaged();
+
+            $isReturned = !is_null($transaction->returned_at);
+            $actorUser = $isReturned ? ($transaction->returner ?? null) : ($transaction->creator ?? null);
+            $actorRole = $isReturned ? ($transaction->returned_by_role ?? null) : ($transaction->created_by_role ?? null);
+            $actorRole = $actorRole ?: ($actorUser?->role ?: null);
+
+            $actorName = $actorUser?->name ?: ($actorUser?->email ?: null);
+            if ($actorName) {
+                $transaction->processed_by_display = $actorRole ? (ucfirst($actorRole) . ': ' . $actorName) : $actorName;
+            } else {
+                $transaction->processed_by_display = '—';
+            }
             
             return $transaction;
         });
@@ -333,7 +408,7 @@ class DashboardController extends Controller
             'totalTransactions','totalStudents','totalTeachers','booksInCirculation','overdueItems',
             'popularLabels','popularData','categoryLabels','categoryData','monthlyLabels','monthlyData',
             'totalBooks', 'availableBooks', 'borrowedBooks', 'damagedBooks', 'lostBooks', 'repairedBooks',
-            'transactions', 'sortBy', 'sortOrder', 'statusFilter'
+            'transactions', 'sortBy', 'sortOrder', 'statusFilter', 'remarksSearch'
         ));
     }
 }

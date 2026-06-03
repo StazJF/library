@@ -1,25 +1,14 @@
 <?php
 
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | Backup Export Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Configure automatic backup exporting to external locations
-    |
-    */
+    'password' => env('BACKUP_PASSWORD'),
+    'require_password' => (bool) env('BACKUP_REQUIRE_PASSWORD', true),
+    // Options: auto, aes256, zipcrypto
+    // Note: Windows File Explorer often cannot extract encrypted ZIPs; 7-Zip is recommended.
+    'zip_encryption' => env('BACKUP_ZIP_ENCRYPTION', 'auto'),
 
-    'export_path' => env('BACKUP_EXPORT_PATH', ''),
-
-    /*
-    |--------------------------------------------------------------------------
-    | Backup Retention
-    |--------------------------------------------------------------------------
-    |
-    | Number of days to retain old backup files (0 to disable cleanup)
-    |
-    */
-
-    'retention_days' => env('BACKUP_RETENTION_DAYS', 30),
+    // When set (or when ProgramData exists), the app will also keep an overwritten copy of the latest
+    // ZIP at this location. This is a server-side copy (not the browser's Downloads folder).
+    'secure_export_dir' => env('BACKUP_SECURE_EXPORT_DIR')
+        ?: (getenv('ProgramData') ? (getenv('ProgramData') . DIRECTORY_SEPARATOR . 'LibraryBackups') : null),
 ];

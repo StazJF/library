@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Models\Book;
 use App\Models\Borrow;
 use App\Models\LostDamagedItem;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Teacher;
 use Carbon\Carbon;
@@ -111,7 +112,10 @@ class TeacherBorrowController extends Controller
             }
 
             try {
-                $borrow = DB::transaction(function () use ($teacher, $book, $borrowDate, $returnDate) {
+                $actorId = Auth::id();
+                $actorRole = Auth::user()?->role;
+
+                $borrow = DB::transaction(function () use ($teacher, $book, $borrowDate, $returnDate, $actorId, $actorRole) {
                     $bookCopy = $book->copies()
                         ->where('status', 'available')
                         ->where('is_lost_damaged', false)
@@ -134,6 +138,8 @@ class TeacherBorrowController extends Controller
                         'role' => 'teacher',
                         'origin' => 'personal',
                         'copy_number' => $bookCopy->control_number,
+                        'created_by' => $actorId,
+                        'created_by_role' => $actorRole,
                     ]);
 
                     $bookCopy->markAsBorrowed();
@@ -206,6 +212,8 @@ class TeacherBorrowController extends Controller
         }
         
         $borrow->returned_at = now();
+        $borrow->returned_by = Auth::id();
+        $borrow->returned_by_role = Auth::user()?->role;
         $borrow->save();
 
         // Update teacher's remark if there's a remark from return (except 'No Remarks')

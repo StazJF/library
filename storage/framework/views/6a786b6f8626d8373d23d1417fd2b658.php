@@ -1,25 +1,154 @@
 <?php $__env->startSection('content'); ?>
-<div class="container">
-    <div class="container">
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-5 gap-3">
+        <div>
+            <h3 class="mb-0" style="font-weight: bold;">Overview Dashboard</h3>
+            <p class="text-muted mb-0">Monitors library transactions and activities</p>
+        </div>
+    </div>
+    <div class="container-fluid">
+        <?php
+            $nearDueStudentBorrows = $nearDueStudentBorrows ?? collect();
+            $nearDueTeacherBorrows = $nearDueTeacherBorrows ?? collect();
+            $nearDueBorrows = $nearDueBorrows ?? $nearDueStudentBorrows->concat($nearDueTeacherBorrows);
+        ?>
+
         <?php if($nearDueBorrows->count() > 0): ?>
+            <?php
+                $isTeacherBorrow = function ($borrow): bool {
+                    return strtolower(trim((string) ($borrow->role ?? ''))) === 'teacher';
+                };
+
+                $displayBorrowerName = function ($borrow) use ($isTeacherBorrow) {
+                    $borrower = $isTeacherBorrow($borrow)
+                        ? ($borrow->teacher ?? null)
+                        : ($borrow->student ?? null);
+
+                    if (!$borrower) {
+                        return 'Unknown';
+                    }
+
+                    if ($isTeacherBorrow($borrow)) {
+                        $name = trim((string) ($borrower->name ?? ''));
+                        if ($name !== '') {
+                            return $name;
+                        }
+                    }
+
+                    $first = trim((string) ($borrower->first_name ?? ''));
+                    $last = trim((string) ($borrower->last_name ?? ''));
+                    $full = trim($first . ' ' . $last);
+                    return $full !== '' ? $full : 'Unknown';
+                };
+            ?>
             <div class="alert alert-warning mb-4">
                 <strong>⚠️ Upcoming Due Dates:</strong><br>
                 The following users have books due within 3 days:<br>
-                <ul class="mb-0">
-                    <?php $__currentLoopData = $nearDueBorrows->take(3); $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-                        <li>
-                            <strong><?php echo e($borrow->user->first_name); ?> <?php echo e($borrow->user->last_name); ?></strong> -
-                            <span class="text-dark"><?php echo e($borrow->book->title ?? 'Unknown Book'); ?></span>
-                            <span class="text-muted">(Due: <?php echo e(\Carbon\Carbon::parse($borrow->due_date)->format('M d, Y')); ?>)</span>
-                        </li>
-                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-                </ul>
-                <?php if($nearDueBorrows->count() > 3): ?>
-                    <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;">
-                        <small style="color:#92400e;">+<?php echo e($nearDueBorrows->count() - 3); ?> more borrow(s) due soon</small>
-                        <a href="<?php echo e(route('borrow.return.index')); ?>" style="margin-left:0.5rem;font-weight:600;">View All</a>
+                <div class="mt-2" style="max-height:50px;overflow-y:auto;padding-right:0.25rem;">
+                    <ul class="mb-0">
+                        <?php $__currentLoopData = $nearDueBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <li>
+                                <strong><?php echo e($displayBorrowerName($borrow)); ?></strong>
+                                <span class="text-muted">(<?php echo e($isTeacherBorrow($borrow) ? 'Teacher' : 'Student'); ?>)</span>
+                                -
+                                <span class="text-dark"><?php echo e($borrow->book->title ?? 'Unknown Book'); ?></span>
+                                <span class="text-muted">(Due: <?php echo e(\Carbon\Carbon::parse($borrow->due_date)->format('M d, Y')); ?>)</span>
+                            </li>
+                        <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                    </ul>
+                </div>
+
+                <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid #fbbf24;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+                    <small style="color:#92400e;">
+                        Showing <?php echo e($nearDueBorrows->count()); ?> due borrow(s) • Students: <?php echo e($nearDueStudentBorrows->count()); ?>  
+                    </small>
+                    <button type="button" class="btn btn-sm btn-outline-dark" data-bs-toggle="modal" data-bs-target="#nearDueModal">
+                        View All
+                    </button>
+
+                </div>
+            </div>
+
+            <!-- Upcoming Due Dates Modal -->
+            <div class="modal fade" id="nearDueModal" tabindex="-1" aria-labelledby="nearDueModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="nearDueModalLabel">Upcoming Due Dates (Next 3 Days)</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <ul class="nav nav-tabs" id="nearDueTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="near-due-students-tab" data-bs-toggle="tab" data-bs-target="#near-due-students" type="button" role="tab" aria-controls="near-due-students" aria-selected="true">
+                                        Students (<?php echo e($nearDueStudentBorrows->count()); ?>)
+                                    </button>
+                                </li>
+                                
+                            </ul>
+
+                            <div class="tab-content pt-3">
+                                <div class="tab-pane fade show active" id="near-due-students" role="tabpanel" aria-labelledby="near-due-students-tab" tabindex="0">
+                                    <?php if($nearDueStudentBorrows->count() === 0): ?>
+                                        <div class="text-muted">No student borrow(s) due soon.</div>
+                                    <?php else: ?>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Student</th>
+                                                        <th>Book</th>
+                                                        <th>Due Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php $__currentLoopData = $nearDueStudentBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        <tr>
+                                                            <td><?php echo e($displayBorrowerName($borrow)); ?></td>
+                                                            <td><?php echo e($borrow->book->title ?? 'Unknown Book'); ?></td>
+                                                            <td><?php echo e(\Carbon\Carbon::parse($borrow->due_date)->format('M d, Y')); ?></td>
+                                                        </tr>
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="tab-pane fade" id="near-due-teachers" role="tabpanel" aria-labelledby="near-due-teachers-tab" tabindex="0">
+                                    <?php if($nearDueTeacherBorrows->count() === 0): ?>
+                                        <div class="text-muted">No teacher borrow(s) due soon.</div>
+                                    <?php else: ?>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-striped align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Teacher</th>
+                                                        <th>Book</th>
+                                                        <th>Due Date</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <?php $__currentLoopData = $nearDueTeacherBorrows; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $borrow): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                                                        <tr>
+                                                            <td><?php echo e($displayBorrowerName($borrow)); ?></td>
+                                                            <td><?php echo e($borrow->book->title ?? 'Unknown Book'); ?></td>
+                                                            <td><?php echo e(\Carbon\Carbon::parse($borrow->due_date)->format('M d, Y')); ?></td>
+                                                        </tr>
+                                                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <a href="<?php echo e(route('borrow.return.index')); ?>" class="btn btn-dark">View in Returns</a>
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                        </div>
                     </div>
-                <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
         
@@ -29,18 +158,21 @@
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
                 <div style="font-size:1.1rem;font-weight:600;color:#111;">Total Book/s</div>
                 <div style="font-size:2rem;font-weight:700;color:#00000;"><?php echo e($totalBooks); ?></div>
+                <div style="font-size:0.85rem;color:#6b7280;margin-top:0.5rem;">All books in the library collection</div>
             </div>
         </div>
         <div class="flex-fill min-w-0" style="min-width:200px;">
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
                 <div style="font-size:1.1rem;font-weight:600;color:#111;">Total User/s</div>
                 <div style="font-size:2rem;font-weight:700;color:#00000;"><?php echo e($totalUsers); ?></div>
+                <div style="font-size:0.85rem;color:#6b7280;margin-top:0.5rem;">Students and teachers registered</div>
             </div>
         </div>
         <div class="flex-fill min-w-0" style="min-width:200px;">
             <div style="background:#fff;border:1px solid #e5e7eb;border-radius:0.75rem;padding:1.5rem 1rem;box-shadow:0 1px 2px 0 #0001;">
                 <div style="font-size:1.1rem;font-weight:600;color:#111;">Total Borrow/s</div>
                 <div style="font-size:2rem;font-weight:700;color:#00000;"><?php echo e($totalBorrows); ?></div>
+                <div style="font-size:0.85rem;color:#6b7280;margin-top:0.5rem;">Total transactions recorded</div>
             </div>
         </div>
     </div>
@@ -431,6 +563,5 @@
 </script>
 </div>
 <?php $__env->stopSection(); ?>
-
 
 <?php echo $__env->make('layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH C:\Users\user\Herd\library\resources\views/dashboard.blade.php ENDPATH**/ ?>

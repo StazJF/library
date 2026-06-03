@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Models\Book;
 use App\Models\BookCopy;
 use App\Models\Borrow;
-use App\Models\User;
+use App\Models\SystemUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -15,7 +15,13 @@ class BookDeletionGuardTest extends TestCase
 
     public function test_admin_cannot_delete_book_with_active_borrow(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = SystemUser::create([
+            'email' => 'admin@example.com',
+            'name' => 'Admin',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'employee_id' => 'EMP-001',
+        ]);
         $this->actingAs($admin);
 
         $book = Book::factory()->create([
@@ -56,7 +62,13 @@ class BookDeletionGuardTest extends TestCase
 
     public function test_admin_can_delete_book_without_active_borrow(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
+        $admin = SystemUser::create([
+            'email' => 'admin@example.com',
+            'name' => 'Admin',
+            'password' => bcrypt('password'),
+            'role' => 'admin',
+            'employee_id' => 'EMP-001',
+        ]);
         $this->actingAs($admin);
 
         $book = Book::factory()->create([
@@ -83,4 +95,3 @@ class BookDeletionGuardTest extends TestCase
         ]);
     }
 }
-

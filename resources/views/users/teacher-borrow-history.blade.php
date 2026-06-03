@@ -147,6 +147,7 @@
                                 <th class="border-0 fw-semibold">Book Title</th>
                                 <th class="border-0 fw-semibold">Author</th>
                                 <th class="border-0 fw-semibold">ISBN</th>
+                                <th class="border-0 fw-semibold">Advisory Class</th>
                                 <th class="border-0 fw-semibold">Control No.</th>
                                 <th class="border-0 fw-semibold">Borrowed On</th>
                                 <th class="border-0 fw-semibold">Due Date</th>
@@ -176,6 +177,13 @@
                                     <td>{{ $bookAuthor }}</td>
                                     <td>
                                         <small class="text-muted">{{ $bookIsbn }}</small>
+                                    </td>
+                                    <td>
+                                        @if(($borrow->origin ?? '') === 'distribution' && ($borrow->advisory_grade || $borrow->advisory_section))
+                                            <span>Grade {{ $borrow->advisory_grade ?? '-' }} {{ $borrow->advisory_section ?? '' }}</span>
+                                        @else
+                                            <span class="text-muted">-</span>
+                                        @endif
                                     </td>
                                     <td>
                                         <div class="font-monospace">{{ $borrow->getCopyNumberDisplay() }}</div>

@@ -99,6 +99,7 @@
                                     <th style="width: 18%;">Title</th>
                                     <th style="width: 12%;">Author</th>
                                     <th style="width: 10%;">ISBN</th>
+                                    <th style="width: 12%;">Advisory Class</th>
                                     <th style="width: 14%;">Control No.</th>
                                     <th style="width: 11%;">Borrowed At</th>
                                     <th style="width: 11%;">Due Date</th>
@@ -130,6 +131,13 @@
                                         <td><?php echo e($bookTitle); ?></td>
                                         <td><?php echo e($bookAuthor); ?></td>
                                         <td><?php echo e($bookIsbn); ?></td>
+                                        <td>
+                                            <?php if(($borrow->origin ?? '') === 'distribution' && ($borrow->advisory_grade || $borrow->advisory_section)): ?>
+                                                <span>Grade <?php echo e($borrow->advisory_grade ?? '-'); ?> <?php echo e($borrow->advisory_section ?? ''); ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted">-</span>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <div class="font-monospace"><?php echo e($copyNumberDisplay); ?></div>
                                             <div class="small text-muted">Ctrl#: <span class="font-monospace"><?php echo e($controlNumberRaw); ?></span></div>

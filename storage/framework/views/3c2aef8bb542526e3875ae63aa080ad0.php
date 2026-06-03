@@ -1,7 +1,7 @@
 <?php $__env->startSection('content'); ?>
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0" style="color:#111;">Archive</h2>
+        <h1 class="fw-bold mb-0" style="color:#111;">Archive</h1>
     </div>
 
     <?php if(session('success')): ?>
@@ -39,7 +39,17 @@
     <div class="tab-content bg-white p-4 rounded shadow-sm border" id="archiveTabsContent" style="min-height:350px;">
         <!-- Books Tab -->
         <div class="tab-pane fade show active" id="books" role="tabpanel">
-            <?php echo $__env->make('utilities.archive-table', ['items' => $books, 'type' => 'book'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            <div class="mb-4">
+                <h5 class="fw-semibold mb-2">Deleted Books (Grouped)</h5>
+                <div class="text-muted small mb-2">Shows a grouped row only when the book is deleted and all its copies are deleted.</div>
+                <?php echo $__env->make('utilities.archive-table', ['items' => $books, 'type' => 'book'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            </div>
+
+            <div class="mt-4">
+                <h5 class="fw-semibold mb-2">Deleted Book Copies (Individual)</h5>
+                <div class="text-muted small mb-2">Shows individual deleted copies that are not part of a fully-deleted book group.</div>
+                <?php echo $__env->make('utilities.archive-table', ['items' => $bookCopies ?? collect(), 'type' => 'book_copy'], array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+            </div>
         </div>
 
         <!-- Teachers Tab -->

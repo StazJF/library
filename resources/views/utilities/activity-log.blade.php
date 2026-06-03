@@ -3,7 +3,7 @@
 @section('content')
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold mb-0" style="color:#111;">Activity Logs</h2>
+        <h1 class="fw-bold mb-0" style="color:#111;">Activity Logs</h1>
     </div>
 
     <!-- Search and Filter form -->

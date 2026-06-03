@@ -276,7 +276,9 @@ class Book extends Model
             'available' => $this->copies()->where('status', 'available')->where('is_lost_damaged', false)->count(),
             'borrowed' => $this->copies()->where('status', 'borrowed')->where('is_lost_damaged', false)->count(),
             'lost' => $this->copies()->where('status', 'lost')->where('is_lost_damaged', true)->count(),
+            'missing' => $this->copies()->where('status', 'missing')->where('is_lost_damaged', true)->count(),
             'damaged' => $this->copies()->where('status', 'damaged')->where('is_lost_damaged', true)->count(),
+            'replaced' => $this->copies()->where('status', 'replaced')->where('is_lost_damaged', true)->count(),
             'found' => $this->copies()->where('status', 'found')->where('is_lost_damaged', false)->count(),
             'repaired' => $this->copies()->where('status', 'repaired')->where('is_lost_damaged', false)->count(),
         ];

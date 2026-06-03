@@ -29,6 +29,8 @@
         .no-print { display: block; }
         .btn-group-print { display: flex; gap: 10px; margin-bottom: 20px; }
         .summary-footer { margin-top: 20px; padding-top: 15px; border-top: 2px solid #1e3a8a; font-size: 12px; text-align: right; color: #555; }
+        .signature-block { margin-top: 30px; display: flex; justify-content: flex-end; break-inside: avoid; page-break-inside: avoid; }
+        .signature-line { width: 260px; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 11px; color: #333; }
         
         @page {
             size: A4;
@@ -187,6 +189,11 @@
     @endforelse
     </tbody>
 </table>
+
+{{-- Signature --}}
+<div class="signature-block">
+    <div class="signature-line">Admin/Staff Signature</div>
+</div>
 
 {{-- Summary Footer --}}
 <div class="summary-footer no-print">

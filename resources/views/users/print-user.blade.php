@@ -29,6 +29,8 @@
         .no-print { display: block; }
         .btn-group-print { display: flex; gap: 10px; margin-bottom: 20px; }
         .badge { padding: 4px 8px; font-size: 11px; }
+        .signature-block { margin-top: 30px; display: flex; justify-content: flex-end; break-inside: avoid; page-break-inside: avoid; }
+        .signature-line { width: 260px; border-top: 1px solid #333; padding-top: 6px; text-align: center; font-size: 11px; color: #333; }
         
         @page {
             size: A4;
@@ -234,6 +236,11 @@
 @else
     <p style="text-align: center; padding: 20px; color: #666; font-size: 13px;">No borrowing history found.</p>
 @endif
+
+{{-- Signature --}}
+<div class="signature-block">
+    <div class="signature-line">Admin/Staff Signature</div>
+</div>
 
 <script>
     // Display current time in 12-hour format with AM/PM

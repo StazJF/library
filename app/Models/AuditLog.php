@@ -18,6 +18,8 @@ class AuditLog extends Model
     public const RESULT_MISSING = 'MISSING';
     public const RESULT_DAMAGED = 'DAMAGED';
     public const RESULT_MISPLACED = 'MISPLACED';
+    public const RESULT_BORROWED = 'BORROWED';
+    public const RESULT_REPLACED = 'REPLACED';
 
     protected $fillable = [
         'audit_session_id',
@@ -45,4 +47,3 @@ class AuditLog extends Model
         return $this->belongsTo(SystemUser::class, 'created_by');
     }
 }
-
