@@ -1,62 +1,42 @@
-# syntax=docker/dockerfile:1
+FROM php:8.2-cli
 
-FROM node:20-bookworm-slim AS frontend
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    zip \
+    unzip \
+    libpq-dev \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    nodejs \
+    npm
 
-WORKDIR /app
+# Install required PHP extensions including pdo_pgsql
+RUN docker-php-ext-install \
+    pdo \
+    pdo_pgsql \
+    pgsql \
+    mbstring \
+    bcmath \
+    gd
 
-COPY package*.json ./
-RUN npm ci
-
-COPY resources ./resources
-COPY public ./public
-COPY components.json postcss.config.cjs tailwind.config.cjs vite.config.js ./
-RUN npm run build
-
-
-FROM php:8.2-cli-bookworm AS app
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        curl \
-        default-mysql-client \
-        git \
-        libicu-dev \
-        libonig-dev \
-        libzip-dev \
-        unzip \
-    && docker-php-ext-install \
-        bcmath \
-        intl \
-        mbstring \
-        opcache \
-        pdo_mysql \
-        zip \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
-
-COPY composer.json composer.lock ./
-RUN composer install \
-    --no-dev \
-    --prefer-dist \
-    --no-interaction \
-    --no-progress \
-    --optimize-autoloader \
-    --no-scripts
-
+# Copy project files
 COPY . .
-COPY --from=frontend /app/public/build ./public/build
 
-RUN composer dump-autoload --optimize --no-scripts \
-    && php artisan package:discover --ansi \
-    && mkdir -p storage/app storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \
-    && chown -R www-data:www-data storage bootstrap/cache
+# Install PHP and Node dependencies, build frontend
+RUN composer install --no-dev --optimize-autoloader
+RUN npm install && npm run build
 
-USER www-data
+# Cache Laravel config
+RUN php artisan config:cache && php artisan route:cache
 
-EXPOSE 8000
+EXPOSE 8080
 
-CMD ["sh", "-c", "php artisan migrate --force && php artisan config:cache && php artisan route:cache && php artisan view:cache && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"]
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8080
