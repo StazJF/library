@@ -1,14 +1,17 @@
 services:
   - type: web
     name: snhs-library
-    env: php
-    buildCommand: composer install --no-dev --optimize-autoloader && npm install && npm run build && php artisan config:cache && php artisan route:cache
-    startCommand: php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
+    env: docker                        # ← Changed from php to docker
+    dockerfilePath: ./Dockerfile       # ← Points to your Dockerfile
+    buildCommand: ""                   # ← Let Dockerfile handle the build
+    startCommand: ""                   # ← Let Dockerfile CMD handle this
     envVars:
       - key: APP_ENV
         value: production
       - key: APP_DEBUG
         value: false
+      - key: APP_KEY
+        sync: false                    # ← Set manually in Render dashboard
       - key: LOG_CHANNEL
         value: stack
       - key: CACHE_STORE
@@ -23,3 +26,17 @@ services:
         value: lax
       - key: QUEUE_CONNECTION
         value: database
+
+      # ← These were completely missing before
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        value: dpg-d8ggujrbc2fs73eigiu0-a
+      - key: DB_PORT
+        value: 5432
+      - key: DB_DATABASE
+        value: library_owhb
+      - key: DB_USERNAME
+        value: library_owhb_user
+      - key: DB_PASSWORD
+        value: oJ2ZumG1MU0pQreQb4OCYlrhzqpUmOKq
